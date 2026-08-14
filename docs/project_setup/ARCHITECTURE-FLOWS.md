@@ -1,7 +1,7 @@
-System Architecture, Schema & Flows — Self-Improving AI Community Agent
+System Architecture, Schema & Flows - Self-Improving AI Community Agent
 Companion to: PROJECT-SPEC.md
 Purpose: visual and technical reference for Cursor
-Status: Updated after Meta Developer Account SMS-verification blocker — Agent channel decoupled from WhatsApp
+Status: Updated after Meta Developer Account SMS-verification blocker - Agent channel decoupled from WhatsApp
 
 ## 0. Channel Decision (Update)
 
@@ -9,10 +9,10 @@ Two separate, independent surfaces exist in this system. They do **not** share a
 path, an API, or a blocker:
 
 ```text
-SURFACE 1 — Human Community           SURFACE 2 — Agent (1:1 assistant)
+SURFACE 1 - Human Community           SURFACE 2 - Agent (1:1 assistant)
 WhatsApp Community                    Telegram Bot (primary, MVP)
 Created via regular WhatsApp app      Created via @BotFather
-(NOT WhatsApp Business app —          No Meta Developer Account needed
+(NOT WhatsApp Business app -          No Meta Developer Account needed
  Communities unsupported there)       No SMS verification needed
 Owned by a trusted household          WhatsApp Cloud API (future/optional,
 member's regular account, with        once Meta Developer Account unblocks,
@@ -24,9 +24,9 @@ Human-administered, always
 
 Rationale: the Meta Developer Account SMS-verification flow blocked creation of a WhatsApp
 Business number for the Agent. That blocker has **no effect** on creating a WhatsApp
-Community — Communities are a native WhatsApp-app feature with no developer/API dependency.
+Community - Communities are a native WhatsApp-app feature with no developer/API dependency.
 Separately, WhatsApp Communities are not available inside the WhatsApp Business app at all
-(a platform limitation, not a blocker) — so the Community is created from a regular WhatsApp
+(a platform limitation, not a blocker) - so the Community is created from a regular WhatsApp
 account, with the project owner added as a full admin immediately after creation for
 continuity of control. The Agent side is rebuilt around a **messaging-adapter abstraction**,
 with Telegram Bot API as the concrete adapter for the MVP, and WhatsApp Cloud API as a second
@@ -34,7 +34,7 @@ adapter to be added later without touching any downstream logic (security, RAG, 
 routing, LDD).
 
 This means: build and validate the entire system now. Swap or add the WhatsApp Cloud API
-adapter later as a drop-in, once Meta unblocks — it changes one node group in n8n, nothing else.
+adapter later as a drop-in, once Meta unblocks - it changes one node group in n8n, nothing else.
 
 ## 1. Core Architecture
 
@@ -136,7 +136,7 @@ The administrator is the publication gate.
 
 Adapter boundary (new)
 The Messaging Provider subgraph is the only place channel-specific code lives. Everything
-below the `WH["Webhook"]` node is channel-agnostic — it must never contain Telegram- or
+below the `WH["Webhook"]` node is channel-agnostic - it must never contain Telegram- or
 WhatsApp-specific logic. n8n implements this as a small "normalize inbound message" /
 "format outbound message" sub-workflow pair per adapter, both producing/consuming the same
 internal message shape.
@@ -171,7 +171,7 @@ External AI Boundary
 ```
 
 Security classification, and now the sensitive-data detector, must both complete before
-crossing the external AI boundary — independent of which messaging boundary the message
+crossing the external AI boundary - independent of which messaging boundary the message
 arrived through.
 
 ## 3. Database ERD
@@ -324,7 +324,7 @@ Changes from the original design:
 knowledge_base and prompt relationships in interaction_logs remain logical references stored
 as IDs/JSONB because one response may use multiple KB records.
 
-## 4. Loop 1 — Real-Time Sequence
+## 4. Loop 1 - Real-Time Sequence
 
 ```mermaid
 sequenceDiagram
@@ -388,7 +388,7 @@ end
 end
 ```
 
-## 5. State Machine — User Message
+## 5. State Machine - User Message
 
 ```mermaid
 stateDiagram-v2
@@ -430,7 +430,7 @@ Throttled --> Logged
 Discarded --> [*]
 ```
 
-## 6. Loop 2 — Telemetry & Feedback
+## 6. Loop 2 - Telemetry & Feedback
 
 ```mermaid
 flowchart LR
@@ -448,9 +448,9 @@ REVIEW -->|Yes| L3["Loop 3 queue"]
 
 Important:
 Implicit feedback is evidence, not proof. Sensitive-data events are never fed into Loop 3 as
-training signal — they go to the admin only, kept in a separate audit trail.
+training signal - they go to the admin only, kept in a separate audit trail.
 
-## 7. Loop 3 — Meta-Learning
+## 7. Loop 3 - Meta-Learning
 
 ```mermaid
 sequenceDiagram
@@ -504,7 +504,7 @@ Superseded --> [*]
 
 Never delete historical prompt versions.
 
-## 9. Loop 4 — Weekly Optimization
+## 9. Loop 4 - Weekly Optimization
 
 ```mermaid
 sequenceDiagram
@@ -529,7 +529,7 @@ A->>PG: Optional KB additions
 ```
 
 Note: the weekly digest is posted into the WhatsApp Community regardless of which platform
-the Agent itself runs on — the Community stays WhatsApp-native at all times.
+the Agent itself runs on - the Community stays WhatsApp-native at all times.
 
 ## 10. Cost Routing
 
@@ -583,7 +583,7 @@ N8N -->|outbound| LLM2
 ```
 
 A laptop may be used for development.
-A production webhook requires a publicly reachable HTTPS endpoint — true for both Telegram
+A production webhook requires a publicly reachable HTTPS endpoint - true for both Telegram
 Bot API and WhatsApp Cloud API.
 
 ## 12. Failure Paths

@@ -11,7 +11,7 @@ services:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      # Phase 1 only enables the pgvector extension — no app schema yet (Phase 2).
+      # Phase 1 only enables the pgvector extension - no app schema yet (Phase 2).
       - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
@@ -38,11 +38,11 @@ services:
       N8N_PROTOCOL: http
       N8N_PORT: 5678
       GENERIC_TIMEZONE: Asia/Jerusalem
-      # n8n's own workflow/credential metadata store defaults to its embedded SQLite —
+      # n8n's own workflow/credential metadata store defaults to its embedded SQLite -
       # separate concern from the `postgres` service above, which is the application's
       # system of record per ADR-0002 (users, knowledge_base, interaction_logs, etc.).
       # Code nodes need $env access to verify the Telegram webhook secret without ever
-      # embedding the value in the workflow JSON itself (PROJECT-SPEC.md §4.3) — only this
+      # embedding the value in the workflow JSON itself (PROJECT-SPEC.md §4.3) - only this
       # one secret is exposed this way; the bot token stays in n8n's credential store.
       N8N_BLOCK_ENV_ACCESS_IN_NODE: 'false'
       TELEGRAM_WEBHOOK_SECRET: ${TELEGRAM_WEBHOOK_SECRET}
@@ -59,7 +59,7 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
-    # Not published to the host directly — only reachable through reverse-proxy below,
+    # Not published to the host directly - only reachable through reverse-proxy below,
     # matching the deployment topology in ARCHITECTURE-FLOWS.md §11.
 
   reverse-proxy:

@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # Pre-merge verification gate. Run this before merging any branch back to main
-# (see .claude/skills/phase-workflow/SKILL.md) — it should catch anything a
+# (see .claude/skills/phase-workflow/SKILL.md) - it should catch anything a
 # phase/fix accidentally broke in what already worked.
 #
 # Convention: every service/component keeps its own regression checks in a
 # `tests/run.sh` script (e.g. database/tests/run.sh, n8n/tests/run.sh,
 # services/messaging-adapters/telegram/tests/run.sh). This script auto-discovers and
-# runs all of them, so a new phase adding a new service is covered automatically —
+# runs all of them, so a new phase adding a new service is covered automatically -
 # add your checks under <your-path>/tests/run.sh, you should not need to edit this file.
 set -uo pipefail
 cd "$(dirname "$0")/.."
@@ -37,8 +37,8 @@ while IFS= read -r test_script; do
 done < <(find . -type f -name run.sh -path '*/tests/run.sh' | sort)
 
 if [ "$overall_fail" -eq 0 ]; then
-  echo "ALL CHECKS PASSED — safe to merge."
+  echo "ALL CHECKS PASSED - safe to merge."
 else
-  echo "ONE OR MORE CHECKS FAILED — do not merge until fixed." >&2
+  echo "ONE OR MORE CHECKS FAILED - do not merge until fixed." >&2
 fi
 exit $overall_fail

@@ -2,7 +2,7 @@
   "name": "@bit-by-bit/messaging-adapter-telegram",
   "private": true,
   "type": "module",
-  "description": "Telegram adapter logic (ADR-0001) — normalize/format/secret-verification. The reviewable, tested source of truth; the same logic is placed into n8n Code nodes since n8n doesn't run TypeScript natively.",
+  "description": "Telegram adapter logic (ADR-0001) - normalize/format/secret-verification. The reviewable, tested source of truth; the same logic is placed into n8n Code nodes since n8n doesn't run TypeScript natively.",
   "scripts": {
     "test": "node --experimental-strip-types --test *.test.ts"
   }

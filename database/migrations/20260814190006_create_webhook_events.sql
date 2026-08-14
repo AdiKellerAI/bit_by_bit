@@ -1,6 +1,6 @@
 -- migrate:up
 -- NOTE: platform_message_id is the sole PK, matching ARCHITECTURE-FLOWS.md §3's ERD exactly.
--- This is a known future collision risk once a second platform (WhatsApp) is active — two
+-- This is a known future collision risk once a second platform (WhatsApp) is active - two
 -- platforms could in principle issue the same message id. Flagged in the Phase 2 plan;
 -- revisit as a composite PK (platform, platform_message_id) when WhatsApp adapter work starts.
 CREATE TABLE webhook_events (

@@ -1,4 +1,4 @@
-# Local-dev reverse proxy only. No domain/public HTTPS configured yet —
+# Local-dev reverse proxy only. No domain/public HTTPS configured yet -
 # that's a Phase 3+ concern once the Telegram webhook needs to be reachable
 # from the internet (see docs/architecture/adrs/0005-local-docker-runtime.md).
 :5678 {

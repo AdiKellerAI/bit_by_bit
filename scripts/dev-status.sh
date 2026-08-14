@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Point-in-time check matching PREPARATION-CHECKLIST.md §5.3's local-env verification list.
-# Deliberately does not check "LLM API works" or "Telegram bot responds" — those belong to
+# Deliberately does not check "LLM API works" or "Telegram bot responds" - those belong to
 # Phase 4 and Phase 3 respectively, not this phase.
 cd "$(dirname "$0")/.."
 

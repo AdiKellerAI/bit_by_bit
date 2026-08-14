@@ -6,7 +6,7 @@ Accepted
 ## Context
 The Agent's 1:1 channel and the human WhatsApp Community are two independent surfaces
 (PROJECT-SPEC.md §0). The original plan assumed the Agent channel and the WhatsApp Cloud API
-were the same decision — they are not. The Meta Developer Account required for WhatsApp Cloud
+were the same decision - they are not. The Meta Developer Account required for WhatsApp Cloud
 API is currently blocked on SMS verification (PREREQUISITES.md §7), with no fixed unblock
 date. A Telegram bot, created via @BotFather, requires no business verification, no SMS
 gateway, and was available immediately (PREREQUISITES.md §6).
@@ -27,9 +27,9 @@ Concretely:
   not `telegram_id` (ARCHITECTURE-FLOWS.md §3, Changes from the original design).
 
 ## Consequences
-- Adding WhatsApp Cloud API later is a drop-in second adapter, not a rewrite — this is
+- Adding WhatsApp Cloud API later is a drop-in second adapter, not a rewrite - this is
   PROJECT-SPEC.md §25 Definition-of-Done item 22.
 - Until WhatsApp Cloud API is added, all "platform" values in the database will be `telegram`
   in practice; code must not assume this is permanent.
-- The WhatsApp Community (human channel) has no dependency on this decision at all — see
+- The WhatsApp Community (human channel) has no dependency on this decision at all - see
   ADR context in PROJECT-SPEC.md §0 items 1 and 5-7; it is unaffected infrastructure.

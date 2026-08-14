@@ -19,7 +19,7 @@ PROJECT-SPEC.md §14) and answers from a curated knowledge base via RAG.
 
 Telegram is primary and the only active adapter. WhatsApp Cloud API is deferred (ADR-0001).
 The WhatsApp Community (human-run Announcements + Sandbox) is separate, already-set-up
-infrastructure — not built as part of this project.
+infrastructure - not built as part of this project.
 
 ## 4. What the Agent must NOT do (PROJECT-SPEC.md §19, §26)
 
@@ -43,7 +43,7 @@ company information (PROJECT-SPEC.md §4.1).
 
 ## 7. What counts as a successful answer
 
-Not yet quantified — this is explicitly your input to prepare
+Not yet quantified - this is explicitly your input to prepare
 (PREPARATION-CHECKLIST.md §0.1 "MVP success criteria": answer quality, response latency, cost
 per conversation, conversations handled, % requiring human intervention, % unsafe/incorrect
 answers, sensitive-data detection accuracy with false negatives as the priority to minimize,
@@ -59,14 +59,14 @@ user feedback quality). Listed here as an open item, not invented.
 
 ## 9. Sensitive-data incident definition and required response
 
-A sensitive-data incident is any positive match from the detector in ADR-0003 — credential-
+A sensitive-data incident is any positive match from the detector in ADR-0003 - credential-
 shaped strings, personal identifiers, classification markings, internal ticket/case numbers,
 internal hostnames/IP ranges, source-code fragments, or other org-specific patterns
 (PROJECT-SPEC.md §4.2). Required response, every time, no exceptions for apparent intent:
 block before any LLM call, safe non-judgmental redirect to the user, write to
 `sensitive_data_events`, notify the admin.
 
-## 10. Definition of Done — MVP (PROJECT-SPEC.md §25, restated as a checklist)
+## 10. Definition of Done - MVP (PROJECT-SPEC.md §25, restated as a checklist)
 
 1. A user can DM the Agent on Telegram.
 2. Webhook delivery works reliably.
@@ -91,5 +91,5 @@ block before any LLM call, safe non-judgmental redirect to the user, write to
 21. Failure paths are observable.
 22. The messaging adapter is cleanly swappable.
 
-This phase (Phase 0-1) delivers none of these directly — it delivers the architecture
+This phase (Phase 0-1) delivers none of these directly - it delivers the architecture
 documentation and the local infrastructure that later phases build on top of.

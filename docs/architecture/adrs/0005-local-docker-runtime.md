@@ -6,7 +6,7 @@ Accepted
 ## Context
 PROJECT-SPEC.md §5 and §23 specify Docker/Docker Compose as core local infrastructure, and
 PREPARATION-CHECKLIST.md Phase 16's First Implementation Gate requires "Docker works" before
-implementation starts. Neither document mandates a specific Docker runtime/distribution — this
+implementation starts. Neither document mandates a specific Docker runtime/distribution - this
 is a local-machine choice, not an architectural one, made explicitly during Phase 0-1 planning
 (2026-08-14) since Docker was not installed on the development machine at all.
 
@@ -30,6 +30,6 @@ Use Colima as the local Docker runtime: `brew install colima docker docker-compo
 - Anyone else working on this repo on macOS without Docker Desktop already installed should
   follow the same Colima path for consistency; Docker Desktop would also work (same CLI
   surface) but isn't the documented/scripted default.
-- This choice is local-machine tooling, not part of the deployed system — the eventual
+- This choice is local-machine tooling, not part of the deployed system - the eventual
   pilot/production host (PROJECT-SPEC.md §23 Deployment Topology) will run Docker via whatever
   the chosen hosting provider supports, which is a separate, still-open decision.

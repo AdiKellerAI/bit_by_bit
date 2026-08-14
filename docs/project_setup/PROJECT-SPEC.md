@@ -1,4 +1,4 @@
-# Project Specification — Self-Improving AI Agent for an Internal AI & Development Community
+# Project Specification - Self-Improving AI Agent for an Internal AI & Development Community
 > Document status: Updated master specification (Telegram-first Agent channel)
 > Purpose: Source of truth for Cursor / implementation
 Language: English for architecture, prompts, code and documentation; Hebrew for the
@@ -28,7 +28,7 @@ human administrator.
 - Human approval before changes to prompts, routing policies or other behavior
 become active.
 - Strong security boundaries suitable for a defense-sector environment, including
-active monitoring of what users type — not just what the Agent says back.
+active monitoring of what users type - not just what the Agent says back.
 
 **Channel correction (updated)**
 
@@ -39,10 +39,10 @@ decision. They are not, and this project treats them as two independent tracks:
    directly through the WhatsApp app (Settings → Communities → New Community). It requires
    no Meta Developer Account, no business verification, and no API access of any kind.
 2. **The Agent's 1:1 channel is implemented behind a messaging-adapter abstraction.**
-   For the MVP, the concrete adapter is a **Telegram bot** (created via @BotFather — no SMS
+   For the MVP, the concrete adapter is a **Telegram bot** (created via @BotFather - no SMS
    verification, no business account, available immediately).
 3. A **WhatsApp Cloud API adapter** may be added later, once Meta Developer Account access is
-   unblocked, as a second adapter alongside Telegram — not a replacement, unless later decided
+   unblocked, as a second adapter alongside Telegram - not a replacement, unless later decided
    otherwise.
 4. Nothing about the Agent's internal logic (security, RAG, caching, cost routing, LDD)
    depends on which adapter is active. Only the inbound-normalize / outbound-format nodes in
@@ -52,7 +52,7 @@ decision. They are not, and this project treats them as two independent tracks:
 6. The Agent generates weekly content drafts.
 7. A human administrator reviews and manually posts those drafts into the WhatsApp Community.
 
-This separation is a hard architectural boundary, same as in the original plan — it now also
+This separation is a hard architectural boundary, same as in the original plan - it now also
 applies between "Agent channel" and "Community channel," which are allowed to be different
 platforms entirely.
 
@@ -113,20 +113,20 @@ The Agent does not post directly into these groups in v1, regardless of which pl
 Agent itself runs on.
 
 **Ownership and admin control.** WhatsApp Communities are not available in the WhatsApp
-Business app (a real, current platform limitation) — only in the regular WhatsApp app. The
+Business app (a real, current platform limitation) - only in the regular WhatsApp app. The
 Community is therefore created and owned by a regular WhatsApp account belonging to a
 trusted household member, with the project owner's own number added as a full admin of the
 Community and every group inside it immediately after creation. This ensures day-to-day
 control, moderation, and posting authority do not depend solely on the creator account.
 Actual phone numbers are treated as credentials: stored in the personal secrets backup
 (see PREPARATION-CHECKLIST.md), never written into project documents or committed to the
-repository. This ownership arrangement is a personal-POC bridge, and — like the messaging
-platform choice — should be revisited as part of the organizational review in §4.7 before
+repository. This ownership arrangement is a personal-POC bridge, and - like the messaging
+platform choice - should be revisited as part of the organizational review in §4.7 before
 any wider rollout.
 
 ### 2.2 AI Agent (Telegram for MVP; WhatsApp adapter optional/future)
 
-The Agent is a separate 1:1 contact — a Telegram bot for the MVP.
+The Agent is a separate 1:1 contact - a Telegram bot for the MVP.
 
 Users can ask, in either Hebrew or English, e.g.:
 - ”יש פודקאסט טוב למתחילים ב-AI”?
@@ -156,7 +156,7 @@ whether the underlying transport is Telegram or WhatsApp.
 trust domains.
 10. The system must fail safely.
 11. The messaging channel is an implementation detail, not an architectural
-dependency — the system must not assume a single fixed platform.
+dependency - the system must not assume a single fixed platform.
 12. What users type must be actively monitored for sensitive content, not just
 what the Agent says back.
 
@@ -165,8 +165,8 @@ what the Agent says back.
 
 ## 4. Security Model
 
-This is a defense-sector context. The system must assume that external AI APIs — and the
-messaging platform itself — are an untrusted data boundary unless explicitly approved by the
+This is a defense-sector context. The system must assume that external AI APIs - and the
+messaging platform itself - are an untrusted data boundary unless explicitly approved by the
 company.
 
 ### 4.1 MVP security boundary
@@ -200,15 +200,15 @@ Requirements:
 - A positive match always: (a) blocks the message from proceeding to any LLM call,
   (b) responds to the user with a short, non-judgmental safe redirect, (c) writes a row to a
   dedicated `sensitive_data_events` audit table (separate from general telemetry), and
-  (d) notifies the administrator — not just logs the event passively.
-- Sensitive-data events are never used as training signal for Loop 3 — they are an audit/
+  (d) notifies the administrator - not just logs the event passively.
+- Sensitive-data events are never used as training signal for Loop 3 - they are an audit/
   incident trail only, reviewed by a human.
 - This detector is explicitly called out as a distinct component (not folded into the general
   "data classification" step) so it can be reviewed, tuned and audited on its own.
 - Detection patterns must be treated as a living configuration, not a one-time hardcoded list
-  — expected to be refined with the organization's security team over time.
+  - expected to be refined with the organization's security team over time.
 
-Do not rely only on regex detection for this either — regex/heuristics are a first-pass
+Do not rely only on regex detection for this either - regex/heuristics are a first-pass
 signal; treat unclear cases as flagged rather than silently passed.
 
 ### 4.3 Secrets
@@ -295,20 +295,20 @@ Retrieved articles must never be allowed to override system policy.
 
 ### 4.7 Organizational approval (new)
 
-Before rolling this out to any group of colleagues — regardless of which platform the Agent
-runs on — the data-handling design in this section (classification, sensitive-data
+Before rolling this out to any group of colleagues - regardless of which platform the Agent
+runs on - the data-handling design in this section (classification, sensitive-data
 monitoring, no ingestion of internal data, full audit trail) should be reviewed with Elbit's
 security/IT function. The messaging platform choice (Telegram vs WhatsApp) is a secondary
 question to raise in that same conversation, not a substitute for it.
 
-### 4.8 Messaging automation method (new — considered and rejected alternative)
+### 4.8 Messaging automation method (new - considered and rejected alternative)
 
 A WhatsApp Business **app** (the free consumer app, distinct from Cloud API) is already
 available for this project's use. Two ways exist to turn that into an automated channel:
 
-1. **Official — WhatsApp Cloud API**, gated behind Meta Developer Account verification
+1. **Official - WhatsApp Cloud API**, gated behind Meta Developer Account verification
    (currently blocked). This is the only method used or planned in this project.
-2. **Unofficial — WhatsApp Web automation libraries** (e.g. Baileys, whatsapp-web.js), which
+2. **Unofficial - WhatsApp Web automation libraries** (e.g. Baileys, whatsapp-web.js), which
    drive a real WhatsApp number by automating the WhatsApp Web protocol, without any Meta
    Developer Account or API approval.
 
@@ -316,7 +316,7 @@ Option 2 was explicitly considered and **rejected** for this project:
 - it violates WhatsApp's Terms of Service and risks the number being banned;
 - it is unsupported and can silently break on any WhatsApp protocol change;
 - it requires holding a persistent authenticated session with a personal/business number
-  inside project infrastructure — a trust and audit posture inconsistent with §4 of this
+  inside project infrastructure - a trust and audit posture inconsistent with §4 of this
   document;
 - "we found a workaround" is not a substitute for the organizational security review in
   §4.7.
@@ -344,7 +344,7 @@ Use a configurable multi-provider model registry.
 
 Example tiers:
 
-**Tier 0 — No LLM**
+**Tier 0 - No LLM**
 Use for:
 - cache hits;
 - deterministic commands;
@@ -353,7 +353,7 @@ Use for:
 - routing rules when possible;
 - sensitive-data pattern matching.
 
-**Tier 1 — Cheap / Fast**
+**Tier 1 - Cheap / Fast**
 Use for:
 - classification;
 - simple Q&A;
@@ -364,7 +364,7 @@ Use for:
 
 Examples may include Gemini Flash-class or GPT-mini-class models.
 
-**Tier 2 — Advanced**
+**Tier 2 - Advanced**
 Use only when justified:
 - difficult technical analysis;
 - evaluator;
@@ -653,13 +653,13 @@ Fields:
 - admin_notified
 - created_at
 
-A dedicated, append-only audit trail — separate from interaction_logs — for every time the
+A dedicated, append-only audit trail - separate from interaction_logs - for every time the
 sensitive-data detector fires. Never used as LDD training signal.
 
 
 ---
 
-## 8. LDD — Loop-Driven Development
+## 8. LDD - Loop-Driven Development
 
 LDD is the central architectural idea.
 
@@ -674,12 +674,12 @@ It should continuously create evidence about:
 - which prompts work better.
 
 But learning must be controlled, and must never touch sensitive-data handling logic without
-explicit human review — that logic is treated as a security control, not a tunable behavior.
+explicit human review - that logic is treated as a security control, not a tunable behavior.
 
 
 ---
 
-## 9. Loop 1 — Execution Loop
+## 9. Loop 1 - Execution Loop
 
 Real-time path:
 ```text
@@ -730,7 +730,7 @@ Make the threshold configurable and validate it using evaluation data.
 
 ---
 
-## 10. Loop 2 — Telemetry & Feedback
+## 10. Loop 2 - Telemetry & Feedback
 
 Collect:
 - query;
@@ -772,7 +772,7 @@ Implicit signals should create a review signal, not automatically prove failure.
 
 ---
 
-## 11. Loop 3 — Meta-Learning
+## 11. Loop 3 - Meta-Learning
 
 Run nightly.
 
@@ -832,7 +832,7 @@ This is the safe definition of "self-improving" for v1.
 
 ---
 
-## 12. Loop 4 — Knowledge + Cost Optimization
+## 12. Loop 4 - Knowledge + Cost Optimization
 
 Run weekly.
 
@@ -944,7 +944,7 @@ making the community feel inaccessible. This is identical on Telegram and WhatsA
 
 Implement skills as explicit capabilities rather than one huge prompt.
 
-#### Skill 1 — Podcast Finder
+#### Skill 1 - Podcast Finder
 Find:
 - beginner AI podcasts;
 - advanced AI/AGI podcasts;
@@ -954,7 +954,7 @@ Find:
 - automation;
 - testing.
 
-#### Skill 2 — AI Basics
+#### Skill 2 - AI Basics
 Explain:
 - LLM;
 - token;
@@ -965,7 +965,7 @@ Explain:
 - context window;
 - prompt engineering.
 
-#### Skill 3 — Development with AI
+#### Skill 3 - Development with AI
 Discuss:
 - Copilot;
 - Claude;
@@ -975,32 +975,32 @@ Discuss:
 - code review;
 - architecture.
 
-#### Skill 4 — Innovation Radar
+#### Skill 4 - Innovation Radar
 Surface:
 - new tools;
 - important trends;
 - interesting research;
 - industry shifts.
 
-#### Skill 5 — Community Content Curator
+#### Skill 5 - Community Content Curator
 Prepare weekly content drafts.
 
-#### Skill 6 — Knowledge Gap Detector
+#### Skill 6 - Knowledge Gap Detector
 Identify topics the KB does not cover.
 
-#### Skill 7 — Feedback Analyzer
+#### Skill 7 - Feedback Analyzer
 Analyze negative feedback.
 
-#### Skill 8 — Cost Optimizer
+#### Skill 8 - Cost Optimizer
 Analyze model usage and propose routing changes.
 
-#### Skill 9 — Security Guard
+#### Skill 9 - Security Guard
 Block unsafe requests and sensitive information; this skill owns the sensitive-data detection
 step and is treated as a security control, not a normal skill subject to LDD tuning.
 
-#### Skill 10 — Language/Formatting
+#### Skill 10 - Language/Formatting
 Produce readable messages in Hebrew/English, formatted appropriately for the active platform
-(Telegram Markdown vs WhatsApp formatting differ slightly — the adapter layer handles this).
+(Telegram Markdown vs WhatsApp formatting differ slightly - the adapter layer handles this).
 
 
 ---
@@ -1024,7 +1024,7 @@ Examples:
 /incidents
 ```
 
-`/incidents` (new) — lists recent sensitive-data events for review.
+`/incidents` (new) - lists recent sensitive-data events for review.
 
 Do not make destructive commands easy to trigger accidentally.
 Require confirmation for:
@@ -1207,7 +1207,7 @@ information from a personal machine/server.
 
 Cursor must work sequentially.
 
-#### Phase 0 — Architecture & Threat Model
+#### Phase 0 - Architecture & Threat Model
 Deliver:
 - ADRs;
 - trust boundaries;
@@ -1217,7 +1217,7 @@ Deliver:
 - MVP scope;
 - explicit note that the messaging adapter is abstracted (Telegram active, WhatsApp future).
 
-#### Phase 1 — Infrastructure
+#### Phase 1 - Infrastructure
 Create:
 - Docker Compose;
 - n8n;
@@ -1228,7 +1228,7 @@ Create:
 - .gitignore;
 - health checks.
 
-#### Phase 2 — Database
+#### Phase 2 - Database
 Create:
 - init.sql;
 - migrations;
@@ -1239,7 +1239,7 @@ Create:
 - evaluation cases;
 - sensitive_data_events table.
 
-#### Phase 3 — Messaging Pipe (Telegram)
+#### Phase 3 - Messaging Pipe (Telegram)
 Build:
 - Telegram webhook verification (via BotFather-issued token);
 - inbound message parsing behind the adapter interface;
@@ -1249,7 +1249,7 @@ Build:
 
 Do not add AI yet. Do not hardcode Telegram specifics outside the adapter module.
 
-#### Phase 4 — Agent Core
+#### Phase 4 - Agent Core
 Add:
 - language detection;
 - security classification;
@@ -1260,7 +1260,7 @@ Add:
 - budget guard;
 - generation.
 
-#### Phase 5 — Prompt System
+#### Phase 5 - Prompt System
 Create:
 - Base Prompt;
 - Router Prompt;
@@ -1271,7 +1271,7 @@ Create:
 
 Store versions in the database.
 
-#### Phase 6 — LDD
+#### Phase 6 - LDD
 Build:
 - telemetry;
 - feedback;
@@ -1280,7 +1280,7 @@ Build:
 - human approval;
 - rollback.
 
-#### Phase 7 — Weekly Community Automation
+#### Phase 7 - Weekly Community Automation
 Build:
 - weekly digest;
 - knowledge gap report;
@@ -1288,7 +1288,7 @@ Build:
 - admin alerts.
 Posting target remains the WhatsApp Community, via manual admin action.
 
-#### Phase 8 — Pilot
+#### Phase 8 - Pilot
 Start with 3–5 trusted users on Telegram.
 Measure:
 - usefulness;
@@ -1298,7 +1298,7 @@ Measure:
 - security behavior;
 - sensitive-data incidents.
 
-#### Phase 9 — Expansion
+#### Phase 9 - Expansion
 Only after evidence:
 - larger user group;
 - additional knowledge;
@@ -1310,7 +1310,7 @@ Only after evidence:
 
 ---
 
-## 25. Definition of Done — MVP
+## 25. Definition of Done - MVP
 
 The MVP is complete when:
 1. A user can DM the Agent (on Telegram).
@@ -1334,7 +1334,7 @@ The MVP is complete when:
 19. The human administrator can copy the digest into the WhatsApp Community.
 20. No sensitive corporate data is required for the MVP.
 21. Failure paths are observable.
-22. The messaging adapter is cleanly swappable — adding WhatsApp Cloud API later
+22. The messaging adapter is cleanly swappable - adding WhatsApp Cloud API later
     requires no changes below the webhook layer.
 
 
