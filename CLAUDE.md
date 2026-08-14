@@ -13,14 +13,26 @@ context — see PROJECT-SPEC.md §4 for the full security model.
 
 ## Status
 
-Phase 0-4 done and committed to `main`: architecture docs, local infra, database schema
+Phase 0-5 done and committed to `main`: architecture docs, local infra, database schema
 (Phase 0-2); a live Telegram echo bot with idempotency (Phase 3 —
 `n8n/workflows/telegram-echo-bot.json`, `services/messaging-adapters/telegram/`); a security
 gate — sensitive-data detection (real), classification (PUBLIC-only stub), language detection
-— running before any echo/generation (Phase 4 — `security/`, `shared/`). `interaction_logs`
-writes begin at Phase 4. Next: RAG/knowledge base, then Generation (budget guard + model
-registry + first real LLM calls). Staying local (no hosting migration) until after RAG.
+— running before any echo/generation (Phase 4 — `security/`, `shared/`); a real knowledge
+base + RAG retrieval, template-only responses, no generation yet (Phase 5 — `knowledge/`, 10
+real seeded sources). `interaction_logs` writes begin at Phase 4; `retrieved_kb_ids`/`intent`
+at Phase 5. Next: Generation (see "Generation phase requirements" below) — budget guard,
+model registry, first real LLM calls. Staying local (no hosting migration) until after this.
 **Update this line whenever a phase completes** — don't let it go stale.
+
+### Generation phase requirements (given 2026-08-14, before that phase starts)
+
+- **Three model tiers, not one model for everything.** Route by query complexity — simple
+  questions get a cheap/fast model, harder ones escalate. Matches PROJECT-SPEC.md §5's
+  Tier 0/1/2 design; the user explicitly reinforced this mid-Phase-5, so treat it as a hard
+  requirement for the Model Selection/Intent Router design, not optional.
+- **Token-frugal by design and a good user experience are both explicit goals** — not in
+  tension by default, but if a cost-saving choice would visibly degrade response quality,
+  surface that trade-off rather than silently picking cheap.
 
 ## How we work (established this session — follow it, don't re-derive it)
 
