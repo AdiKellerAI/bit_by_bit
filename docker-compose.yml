@@ -41,6 +41,11 @@ services:
       # n8n's own workflow/credential metadata store defaults to its embedded SQLite —
       # separate concern from the `postgres` service above, which is the application's
       # system of record per ADR-0002 (users, knowledge_base, interaction_logs, etc.).
+      # Code nodes need $env access to verify the Telegram webhook secret without ever
+      # embedding the value in the workflow JSON itself (PROJECT-SPEC.md §4.3) — only this
+      # one secret is exposed this way; the bot token stays in n8n's credential store.
+      N8N_BLOCK_ENV_ACCESS_IN_NODE: 'false'
+      TELEGRAM_WEBHOOK_SECRET: ${TELEGRAM_WEBHOOK_SECRET}
     volumes:
       - n8n_data:/home/node/.n8n
     depends_on:
