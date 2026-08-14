@@ -1,0 +1,9 @@
+{
+  "name": "@bit-by-bit/security-classification",
+  "private": true,
+  "type": "module",
+  "description": "PUBLIC/INTERNAL/SENSITIVE/CLASSIFIED decision (PROJECT-SPEC.md §4.4). Currently a stub — see classify.ts.",
+  "scripts": {
+    "test": "node --experimental-strip-types --test *.test.ts"
+  }
+}

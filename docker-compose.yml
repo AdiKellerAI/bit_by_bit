@@ -46,6 +46,7 @@ services:
       # one secret is exposed this way; the bot token stays in n8n's credential store.
       N8N_BLOCK_ENV_ACCESS_IN_NODE: 'false'
       TELEGRAM_WEBHOOK_SECRET: ${TELEGRAM_WEBHOOK_SECRET}
+      ADMIN_TELEGRAM_CHAT_ID: ${ADMIN_TELEGRAM_CHAT_ID}
     volumes:
       - n8n_data:/home/node/.n8n
     depends_on:

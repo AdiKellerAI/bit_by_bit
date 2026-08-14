@@ -1,0 +1,9 @@
+{
+  "name": "@bit-by-bit/security-sensitive-data-detection",
+  "private": true,
+  "type": "module",
+  "description": "The always-on, pre-LLM sensitive-data detector (ADR-0003, PROJECT-SPEC.md §4.2). Distinct from security/classification.",
+  "scripts": {
+    "test": "node --experimental-strip-types --test *.test.ts"
+  }
+}
