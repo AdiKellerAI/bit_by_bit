@@ -48,14 +48,17 @@ Continue
 ## Pre-merge gate
 
 `./scripts/verify-all.sh` is the single required check before any merge to `main` — infra
-health, `docker compose config`, `dbmate status`, database schema regression tests
-(`database/tests/run.sh`), and every adapter/service's unit tests. It's designed to grow: each
-new phase that adds a testable service should add its test command as a new step (see the
-Telegram adapter step for the pattern — check the directory exists, skip gracefully if not, so
-the script doesn't need editing by phases that haven't started yet). If a phase adds a new kind
-of check (e.g., an n8n workflow smoke test), add it here rather than leaving it as a one-off
-manual step — that's exactly how the database regression tests came to exist (Phase 2's manual
-`psql` checks were promoted into this script during Phase 3).
+health, `docker compose config`, `dbmate status`, then it auto-discovers and runs every
+`<component-path>/tests/run.sh` in the repo (e.g. `database/tests/run.sh`,
+`n8n/tests/run.sh`, `services/messaging-adapters/telegram/tests/run.sh`).
+
+**When a phase adds a new testable component, give it a `tests/run.sh` — do not edit
+`verify-all.sh` itself.** The auto-discovery means it's covered automatically. Each
+`tests/run.sh` should exit non-zero on failure and clean up any test data/rows it creates
+(wrap DB checks in `BEGIN;...ROLLBACK;` or explicit `DELETE` afterward). This is exactly how
+Phase 2's one-off manual `psql` checks and Phase 3's manual `curl` checks became
+`database/tests/run.sh` and `n8n/tests/run.sh` — promote manual verification into a script
+before considering a phase done, don't leave it as something only you remembered to run once.
 
 ## When NOT to invoke this
 

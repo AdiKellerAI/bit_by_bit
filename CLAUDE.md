@@ -26,9 +26,10 @@ messaging code, no n8n workflows, no application logic.
   Rule). Use plan mode for anything beyond a trivial fix.
 - **Git: one branch per phase or bugfix.** Commit completed, approved work to `main`, then
   branch for the next unit of work. Merge back to `main` only after the user approves.
-- **Run `./scripts/verify-all.sh` before every merge to `main`.** It must pass. See
-  `.claude/skills/phase-workflow/SKILL.md` — new phases should add their tests to this script,
-  not leave verification as a one-off manual step.
+- **Run `./scripts/verify-all.sh` before every merge to `main`.** It must pass. It
+  auto-discovers every `<component>/tests/run.sh` — new phases add a `tests/run.sh` for
+  whatever they build, not leave verification as a one-off manual step (see
+  `.claude/skills/phase-workflow/SKILL.md`).
 - **Don't invent open decisions.** Budget numbers, golden eval set contents, sensitive-data
   detection patterns, model pricing — these are the user's job to bring, not something to
   guess. Flag them as open instead.
