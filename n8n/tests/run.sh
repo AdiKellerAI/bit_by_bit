@@ -108,10 +108,42 @@ else
   fail=1
 fi
 
-psql_exec -c "DELETE FROM webhook_events WHERE platform_message_id IN ('$TEST_UPDATE_ID', '$SENSITIVE_UPDATE_ID', '$CLEAN_UPDATE_ID');" >/dev/null
+# Phase 5: RAG retrieval. Calls the real OpenAI embeddings API (tiny real cost, same as the
+# sensitive-data/clean checks above) and the real seeded knowledge_base.
+RAG_MATCH_UPDATE_ID="3$(date +%s)"
+RAG_MATCH_USER_ID="2$(date +%s)"
+curl -s -o /dev/null -X POST "$URL" \
+  -H "Content-Type: application/json" \
+  -H "X-Telegram-Bot-Api-Secret-Token: $SECRET" \
+  -d "{\"update_id\": $RAG_MATCH_UPDATE_ID, \"message\": {\"message_id\": 1, \"from\": {\"id\": $RAG_MATCH_USER_ID}, \"chat\": {\"id\": $RAG_MATCH_USER_ID, \"type\": \"private\"}, \"date\": 1735689600, \"text\": \"Tell me about LangTalks podcast\"}}"
+sleep 1
+rag_match=$(psql_exec -tAc "SELECT intent FROM interaction_logs WHERE platform_user_id = '$RAG_MATCH_USER_ID'" | tr -d '[:space:]')
+if [ "$rag_match" = "kb_match" ]; then
+  echo "[x] RAG query matching seeded content returns kb_match"
+else
+  echo "[ ] RAG query matching seeded content returns kb_match (got: $rag_match)"
+  fail=1
+fi
+
+RAG_NOMATCH_UPDATE_ID="1$(date +%s)"
+RAG_NOMATCH_USER_ID="19$(date +%s)"
+curl -s -o /dev/null -X POST "$URL" \
+  -H "Content-Type: application/json" \
+  -H "X-Telegram-Bot-Api-Secret-Token: $SECRET" \
+  -d "{\"update_id\": $RAG_NOMATCH_UPDATE_ID, \"message\": {\"message_id\": 1, \"from\": {\"id\": $RAG_NOMATCH_USER_ID}, \"chat\": {\"id\": $RAG_NOMATCH_USER_ID, \"type\": \"private\"}, \"date\": 1735689600, \"text\": \"best pizza recipe\"}}"
+sleep 1
+rag_nomatch=$(psql_exec -tAc "SELECT intent FROM interaction_logs WHERE platform_user_id = '$RAG_NOMATCH_USER_ID'" | tr -d '[:space:]')
+if [ "$rag_nomatch" = "no_match" ]; then
+  echo "[x] unrelated RAG query returns no_match (does not fabricate an answer)"
+else
+  echo "[ ] unrelated RAG query returns no_match (got: $rag_nomatch)"
+  fail=1
+fi
+
+psql_exec -c "DELETE FROM webhook_events WHERE platform_message_id IN ('$TEST_UPDATE_ID', '$SENSITIVE_UPDATE_ID', '$CLEAN_UPDATE_ID', '$RAG_MATCH_UPDATE_ID', '$RAG_NOMATCH_UPDATE_ID');" >/dev/null
 psql_exec -c "DELETE FROM sensitive_data_events WHERE platform_user_id = '$SENSITIVE_USER_ID';" >/dev/null
-psql_exec -c "DELETE FROM interaction_logs WHERE platform_user_id IN ('$TEST_USER_ID', '$SENSITIVE_USER_ID', '$CLEAN_USER_ID');" >/dev/null
-psql_exec -c "DELETE FROM users WHERE platform_user_id IN ('$TEST_USER_ID', '$SENSITIVE_USER_ID', '$CLEAN_USER_ID');" >/dev/null
+psql_exec -c "DELETE FROM interaction_logs WHERE platform_user_id IN ('$TEST_USER_ID', '$SENSITIVE_USER_ID', '$CLEAN_USER_ID', '$RAG_MATCH_USER_ID', '$RAG_NOMATCH_USER_ID');" >/dev/null
+psql_exec -c "DELETE FROM users WHERE platform_user_id IN ('$TEST_USER_ID', '$SENSITIVE_USER_ID', '$CLEAN_USER_ID', '$RAG_MATCH_USER_ID', '$RAG_NOMATCH_USER_ID');" >/dev/null
 
 if [ "$fail" -eq 0 ]; then
   echo "All n8n Telegram workflow tests passed."

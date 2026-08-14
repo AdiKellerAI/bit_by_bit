@@ -1,0 +1,13 @@
+{
+  "name": "@bit-by-bit/knowledge",
+  "private": true,
+  "type": "module",
+  "description": "Knowledge base ingestion (calls OpenAI embeddings API) and the pgvector literal-formatting helper used at both ingest and retrieval time.",
+  "scripts": {
+    "ingest": "node --env-file=../.env --experimental-strip-types ingest.ts",
+    "test": "node --experimental-strip-types --test *.test.ts"
+  },
+  "dependencies": {
+    "pg": "^8.13.1"
+  }
+}
