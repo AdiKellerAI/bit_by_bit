@@ -243,17 +243,68 @@
       }
     },
     {
+      "id": "http-embed-query-1",
+      "name": "Embed Query",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1980, -160],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/embeddings",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'text-embedding-3-small', input: $('Verify & Normalize').item.json.text }) }}",
+        "options": {}
+      },
+      "credentials": {
+        "openAiApi": { "id": "53f2686ac5199beb", "name": "OpenAI (bit_by_bit)" }
+      }
+    },
+    {
+      "id": "pg-search-kb-1",
+      "name": "Search Knowledge Base",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [2200, -160],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "SELECT id, title, url, summary_he, summary_en, category, (embedding <=> $1::vector) AS distance\nFROM knowledge_base\nWHERE status = 'published'\nORDER BY distance\nLIMIT 3;",
+        "options": {
+          "queryReplacement": "={{ ['[' + $json.data[0].embedding.join(',') + ']'] }}"
+        }
+      },
+      "credentials": {
+        "postgres": { "id": "2ceb9b4a66d1d908", "name": "Postgres (bit_by_bit)" }
+      }
+    },
+    {
+      "id": "code-pick-best-match-1",
+      "name": "Pick Best Match",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2420, -160],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// Cosine distance: 0 = identical, 2 = opposite. Start conservative — tune with real\n// usage data, same principle PROJECT-SPEC.md §9 applies to semantic cache thresholds.\nconst DISTANCE_THRESHOLD = 0.5;\n\nconst results = $input.all();\nconst best = results.length > 0 ? results[0].json : null;\n\nif (best && best.distance < DISTANCE_THRESHOLD) {\n  return [{\n    json: {\n      matched: true,\n      matched_id: best.id,\n      title: best.title,\n      url: best.url,\n      summary_he: best.summary_he,\n      summary_en: best.summary_en,\n      distance: best.distance,\n    },\n  }];\n}\n\nreturn [{ json: { matched: false } }];\n"
+      }
+    },
+    {
       "id": "pg-interaction-log-clean-1",
       "name": "Insert interaction_logs (clean)",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [1980, -160],
+      "position": [2640, -160],
       "parameters": {
         "resource": "database",
         "operation": "executeQuery",
-        "query": "INSERT INTO interaction_logs (platform_user_id, platform, user_query, security_classification, sensitive_data_flagged)\nVALUES ($1, $2, $3, $4, false);",
+        "query": "INSERT INTO interaction_logs (platform_user_id, platform, user_query, security_classification, sensitive_data_flagged, retrieved_kb_ids, intent)\nVALUES ($1, $2, $3, $4, false, $5::jsonb, $6);",
         "options": {
-          "queryReplacement": "={{ [$('Verify & Normalize').item.json.platform_user_id, $('Verify & Normalize').item.json.platform, $('Verify & Normalize').item.json.text, $('Detect Language, Classify, Detect Sensitive Data').item.json.classification] }}"
+          "queryReplacement": "={{ [$('Verify & Normalize').item.json.platform_user_id, $('Verify & Normalize').item.json.platform, $('Verify & Normalize').item.json.text, $('Detect Language, Classify, Detect Sensitive Data').item.json.classification, JSON.stringify($('Pick Best Match').item.json.matched ? [$('Pick Best Match').item.json.matched_id] : []), $('Pick Best Match').item.json.matched ? 'kb_match' : 'no_match'] }}"
         }
       },
       "credentials": {
@@ -265,11 +316,11 @@
       "name": "Format Outbound",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2200, -160],
+      "position": [2860, -160],
       "parameters": {
         "mode": "runOnceForAllItems",
         "language": "javaScript",
-        "jsCode": "const chatId = $('Verify & Normalize').item.json.chat_id;\nconst text = $('Verify & Normalize').item.json.text;\nreturn [{ json: { chat_id: chatId, text: 'echo: ' + text } }];\n"
+        "jsCode": "const chatId = $('Verify & Normalize').item.json.chat_id;\nconst language = $('Detect Language, Classify, Detect Sensitive Data').item.json.language;\nconst match = $('Pick Best Match').item.json;\n\nlet text;\nif (match.matched) {\n  text = language === 'he'\n    ? `מצאתי את זה: *${match.title}*\\n${match.summary_he}\\n${match.url}`\n    : `Here's what I found: *${match.title}*\\n${match.summary_en}\\n${match.url}`;\n} else {\n  text = language === 'he'\n    ? 'עדיין אין לי משהו ספציפי על זה במאגר הידע שלי.'\n    : \"I don't have anything specific on that yet in my knowledge base.\";\n}\n\nreturn [{ json: { chat_id: chatId, text } }];\n"
       }
     },
     {
@@ -421,9 +472,18 @@
     },
     "Classification Is PUBLIC?": {
       "main": [
-        [{ "node": "Insert interaction_logs (clean)", "type": "main", "index": 0 }],
+        [{ "node": "Embed Query", "type": "main", "index": 0 }],
         [{ "node": "Insert interaction_logs (classification blocked)", "type": "main", "index": 0 }]
       ]
+    },
+    "Embed Query": {
+      "main": [[{ "node": "Search Knowledge Base", "type": "main", "index": 0 }]]
+    },
+    "Search Knowledge Base": {
+      "main": [[{ "node": "Pick Best Match", "type": "main", "index": 0 }]]
+    },
+    "Pick Best Match": {
+      "main": [[{ "node": "Insert interaction_logs (clean)", "type": "main", "index": 0 }]]
     },
     "Insert interaction_logs (clean)": {
       "main": [[{ "node": "Format Outbound", "type": "main", "index": 0 }]]

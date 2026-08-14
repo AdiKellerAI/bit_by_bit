@@ -1,0 +1,92 @@
+[
+  {
+    "category": "podcasts",
+    "title": "סוכני הבינה (AI Agents)",
+    "url": "https://open.spotify.com/show/2QNnbvrNjKdhcmfxEzkpz3",
+    "summary_en": "Hebrew-language podcast hosted by Oren Shair and Nir Ben David, produced by AppsFlyer, covering AI news, tools, and practical use cases for developers.",
+    "summary_he": "פודקאסט בעברית של אורן שייר וניר בן דוד, בהפקת AppsFlyer, שעוסק בחדשות, כלים ושימושים מעשיים ב-AI עבור מפתחים.",
+    "source_type": "podcast",
+    "trust_level": "community"
+  },
+  {
+    "category": "podcasts",
+    "title": "LangTalks",
+    "url": "https://open.spotify.com/show/2Yqo7i3psncgNKznDJMvEB",
+    "summary_en": "Hebrew-language technical podcast by Lee Twito and Gal Peretz about building AI agents and applications with language models, with an accompanying newsletter.",
+    "summary_he": "פודקאסט טכני בעברית של לי טויטו וגל פרץ על בניית סוכני AI ואפליקציות עם מודלי שפה, עם ניוזלטר נלווה.",
+    "source_type": "podcast",
+    "trust_level": "community"
+  },
+  {
+    "category": "news",
+    "title": "בזמן שעבדתם",
+    "url": "https://open.spotify.com/show/0R8OGY0eb6BJSepIApWB0z",
+    "summary_en": "Hebrew-language general tech/media news roundup hosted by Dani Feld and Dror Gloverman (mako/N12), covering digital and media news you might have missed — broader than AI specifically.",
+    "summary_he": "פודקאסט בעברית של דני פלד ודרור גלוברמן (mako/N12) המסכם חדשות מדיה ודיגיטל שפספסתם — רחב יותר מ-AI בלבד.",
+    "source_type": "podcast",
+    "trust_level": "community"
+  },
+  {
+    "category": "other",
+    "title": "Linas's Newsletter",
+    "url": "https://substack.com/@linas",
+    "summary_en": "English newsletter by Linas Beliūnas, a FinTech & AI strategist, focused on AI strategy at the intersection of finance and technology.",
+    "summary_he": "ניוזלטר באנגלית של Linas Beliūnas, אסטרטג FinTech ו-AI, המתמקד באסטרטגיית AI בממשק שבין פיננסים לטכנולוגיה.",
+    "source_type": "newsletter",
+    "trust_level": "community"
+  },
+  {
+    "category": "ai_tools",
+    "title": "Tom Even — agents&me",
+    "url": "https://substack.com/@tomeven",
+    "summary_en": "English newsletter by Tom Even about running AI agent teams — practical guidance on deploying and managing autonomous AI-driven teams.",
+    "summary_he": "ניוזלטר באנגלית של Tom Even על ניהול צוותי סוכני AI — הדרכה מעשית על פריסה וניהול של צוותים אוטונומיים מבוססי-AI.",
+    "source_type": "newsletter",
+    "trust_level": "community"
+  },
+  {
+    "category": "other",
+    "title": "Galit Galperin — AI Mindset",
+    "url": "https://substack.com/@aithinkers",
+    "summary_en": "English newsletter by Galit Galperin, founder of AI Mindset, helping leaders think and lead smarter in the age of AI — strategy and leadership focused, not hands-on technical.",
+    "summary_he": "ניוזלטר באנגלית של גלית גלפרין, מייסדת AI Mindset, שעוזרת למנהלים לחשוב ולהוביל בצורה חכמה יותר בעידן ה-AI — מתמקד באסטרטגיה ומנהיגות, לא טכני.",
+    "source_type": "newsletter",
+    "trust_level": "community"
+  },
+  {
+    "category": "other",
+    "title": "Yuval Keshtcher — The AI Makers Lab",
+    "url": "https://substack.com/@yuvalkeshtcher",
+    "summary_en": "English newsletter by Yuval Keshtcher about AI experience design, building a community of AI experience designers and UX practitioners working with AI.",
+    "summary_he": "ניוזלטר באנגלית של יובל קשצ'ר על עיצוב חוויית משתמש ב-AI, בניית קהילה של מעצבי חוויית AI ואנשי UX העובדים עם AI.",
+    "source_type": "newsletter",
+    "trust_level": "community"
+  },
+  {
+    "category": "dev_tools",
+    "title": "The Generative Programmer — 10 Open-Source Projects for Securing AI Agent Skills",
+    "url": "https://generativeprogrammer.com/p/10-open-source-projects-for-securing",
+    "summary_en": "Article surveying ten open-source projects for securing AI agents across their lifecycle (scanning, escalation, distribution, authorization, execution containment), with a defense-in-depth adoption strategy.",
+    "summary_he": "מאמר הסוקר עשרה פרויקטי קוד פתוח לאבטחת סוכני AI לאורך מחזור החיים שלהם (סריקה, הרשאות, הפצה, אימות, בידוד הרצה), עם אסטרטגיית אימוץ מבוססת הגנה בשכבות.",
+    "source_type": "article",
+    "trust_level": "community"
+  },
+  {
+    "category": "ai_tools",
+    "title": "AI Roadmap",
+    "url": "https://substack.com/@aiagentsroadmap",
+    "summary_en": "English newsletter offering a structured, hands-on path from LLM fundamentals to deploying production-grade multi-agent systems.",
+    "summary_he": "ניוזלטר באנגלית המציע מסלול מובנה ומעשי מיסודות מודלי שפה ועד פריסת מערכות multi-agent ברמת production.",
+    "source_type": "newsletter",
+    "trust_level": "community"
+  },
+  {
+    "category": "dev_tools",
+    "title": "Jam with AI — Shirin Khosravi Jam",
+    "url": "https://substack.com/@shirinkjam",
+    "summary_en": "English newsletter by Shirin Khosravi Jam, an AI Engineering Manager with hands-on experience in Data Science, AI Agents, RAG, ML, and MLOps, focused on practical production AI.",
+    "summary_he": "ניוזלטר באנגלית של Shirin Khosravi Jam, מנהלת הנדסת AI עם ניסיון מעשי ב-Data Science, סוכני AI, RAG, ML ו-MLOps, המתמקדת ב-AI מעשי ב-production.",
+    "source_type": "newsletter",
+    "trust_level": "community"
+  }
+]
