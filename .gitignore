@@ -1,0 +1,29 @@
+# Secrets — never commit
+.env
+.env.*
+!.env.example
+docs/links_and_details.md
+
+# macOS
+.DS_Store
+
+# Node
+node_modules/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Logs
+*.log
+
+# Docker / local volumes
+docker/volumes/
+*.pid
+
+# Editors
+.vscode/*
+!.vscode/extensions.json
+.idea/

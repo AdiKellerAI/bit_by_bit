@@ -1,0 +1,72 @@
+name: bit-by-bit-dev
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      # Phase 1 only enables the pgvector extension — no app schema yet (Phase 2).
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  n8n:
+    image: n8nio/n8n:latest
+    environment:
+      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY}
+      N8N_PROTOCOL: http
+      N8N_PORT: 5678
+      GENERIC_TIMEZONE: Asia/Jerusalem
+      # n8n's own workflow/credential metadata store defaults to its embedded SQLite —
+      # separate concern from the `postgres` service above, which is the application's
+      # system of record per ADR-0002 (users, knowledge_base, interaction_logs, etc.).
+    volumes:
+      - n8n_data:/home/node/.n8n
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:5678/healthz || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    # Not published to the host directly — only reachable through reverse-proxy below,
+    # matching the deployment topology in ARCHITECTURE-FLOWS.md §11.
+
+  reverse-proxy:
+    image: caddy:2-alpine
+    ports:
+      - "5678:5678"
+    volumes:
+      - ./docker/reverse-proxy/Caddyfile:/etc/caddy/Caddyfile:ro
+    depends_on:
+      n8n:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  redis_data:
+  n8n_data:
