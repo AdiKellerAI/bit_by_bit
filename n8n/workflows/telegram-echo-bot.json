@@ -1,0 +1,207 @@
+{
+  "id": "telegram-echo-bot-phase3",
+  "name": "Telegram Echo Bot (Phase 3)",
+  "active": true,
+  "nodes": [
+    {
+      "id": "webhook-1",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [0, 0],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "telegram-webhook",
+        "responseMode": "responseNode",
+        "options": {}
+      }
+    },
+    {
+      "id": "code-verify-1",
+      "name": "Verify & Normalize",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [220, 0],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const secret = $json.headers['x-telegram-bot-api-secret-token'];\nconst expected = $env.TELEGRAM_WEBHOOK_SECRET;\n\nfunction timingSafeEqualStr(a, b) {\n  if (typeof a !== 'string' || typeof b !== 'string' || a.length !== b.length) return false;\n  let result = 0;\n  for (let i = 0; i < a.length; i++) result |= a.charCodeAt(i) ^ b.charCodeAt(i);\n  return result === 0;\n}\n\nconst validSecret = !!expected && timingSafeEqualStr(secret, expected);\n\nconst update = $json.body || {};\nconst message = update.message;\nconst hasText = !!(message && message.from && typeof message.text === 'string');\n\nif (!validSecret || !hasText) {\n  return [{ json: { valid: false } }];\n}\n\nreturn [{\n  json: {\n    valid: true,\n    platform: 'telegram',\n    platform_user_id: String(message.from.id),\n    chat_id: String(message.chat.id),\n    platform_message_id: String(update.update_id),\n    text: message.text,\n    received_at: new Date(message.date * 1000).toISOString(),\n  },\n}];\n"
+      }
+    },
+    {
+      "id": "if-valid-1",
+      "name": "Is Valid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [440, 0],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.valid }}",
+              "rightValue": true,
+              "operator": { "type": "boolean", "operation": "equals" }
+            }
+          ],
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 2 }
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "pg-idempotency-1",
+      "name": "Insert Idempotency",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [660, -80],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "INSERT INTO webhook_events (platform_message_id, platform, processing_status)\nVALUES ($1, $2, 'processing')\nON CONFLICT (platform_message_id) DO UPDATE SET platform_message_id = EXCLUDED.platform_message_id\nRETURNING (xmax = 0) AS is_new;",
+        "options": {
+          "queryReplacement": "={{ $json.platform_message_id + ',' + $json.platform }}"
+        }
+      },
+      "credentials": {
+        "postgres": { "id": "2ceb9b4a66d1d908", "name": "Postgres (bit_by_bit)" }
+      }
+    },
+    {
+      "id": "if-new-1",
+      "name": "Is New?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [880, -80],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.is_new }}",
+              "rightValue": true,
+              "operator": { "type": "boolean", "operation": "equals" }
+            }
+          ],
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 2 }
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "pg-upsert-user-1",
+      "name": "Upsert User",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1100, -160],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "INSERT INTO users (platform_user_id, platform, last_seen_at, interaction_count)\nVALUES ($1, $2, now(), 1)\nON CONFLICT (platform_user_id) DO UPDATE\n  SET last_seen_at = now(), interaction_count = users.interaction_count + 1\nRETURNING platform_user_id;",
+        "options": {
+          "queryReplacement": "={{ $('Verify & Normalize').item.json.platform_user_id + ',' + $('Verify & Normalize').item.json.platform }}"
+        }
+      },
+      "credentials": {
+        "postgres": { "id": "2ceb9b4a66d1d908", "name": "Postgres (bit_by_bit)" }
+      }
+    },
+    {
+      "id": "code-format-1",
+      "name": "Format Outbound",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1320, -160],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const chatId = $('Verify & Normalize').item.json.chat_id;\nconst text = $('Verify & Normalize').item.json.text;\nreturn [{ json: { chat_id: chatId, text: 'echo: ' + text } }];\n"
+      }
+    },
+    {
+      "id": "telegram-send-1",
+      "name": "Send Telegram Message",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [1540, -160],
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "={{ $json.chat_id }}",
+        "text": "={{ $json.text }}",
+        "additionalFields": {}
+      },
+      "credentials": {
+        "telegramApi": { "id": "895b9583b757539f", "name": "Telegram Bot (bit_by_bit)" }
+      }
+    },
+    {
+      "id": "respond-success-1",
+      "name": "Respond Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [1760, -160],
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "OK",
+        "options": { "responseCode": 200 }
+      }
+    },
+    {
+      "id": "respond-duplicate-1",
+      "name": "Respond Duplicate",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [1100, 40],
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "duplicate",
+        "options": { "responseCode": 200 }
+      }
+    },
+    {
+      "id": "respond-unauthorized-1",
+      "name": "Respond 401",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [660, 160],
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "unauthorized",
+        "options": { "responseCode": 401 }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{ "node": "Verify & Normalize", "type": "main", "index": 0 }]]
+    },
+    "Verify & Normalize": {
+      "main": [[{ "node": "Is Valid?", "type": "main", "index": 0 }]]
+    },
+    "Is Valid?": {
+      "main": [
+        [{ "node": "Insert Idempotency", "type": "main", "index": 0 }],
+        [{ "node": "Respond 401", "type": "main", "index": 0 }]
+      ]
+    },
+    "Insert Idempotency": {
+      "main": [[{ "node": "Is New?", "type": "main", "index": 0 }]]
+    },
+    "Is New?": {
+      "main": [
+        [{ "node": "Upsert User", "type": "main", "index": 0 }],
+        [{ "node": "Respond Duplicate", "type": "main", "index": 0 }]
+      ]
+    },
+    "Upsert User": {
+      "main": [[{ "node": "Format Outbound", "type": "main", "index": 0 }]]
+    },
+    "Format Outbound": {
+      "main": [[{ "node": "Send Telegram Message", "type": "main", "index": 0 }]]
+    },
+    "Send Telegram Message": {
+      "main": [[{ "node": "Respond Success", "type": "main", "index": 0 }]]
+    }
+  }
+}

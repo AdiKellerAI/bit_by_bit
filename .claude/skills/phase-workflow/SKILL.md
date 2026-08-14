@@ -19,6 +19,8 @@ Verify (run it, don't just claim it works)
   ↓
 Human approval
   ↓
+./scripts/verify-all.sh — must pass (see the "Pre-merge gate" section below)
+  ↓
 Commit the approved work to main
   ↓
 Open a new branch for the next phase/fix
@@ -42,6 +44,18 @@ Continue
   (`git status --porcelain --ignored=matching`) — both must stay gitignored.
 - Only commit/branch/merge when the user has actually approved the work in this session — a
   plan being approved is not the same as the implementation being approved.
+
+## Pre-merge gate
+
+`./scripts/verify-all.sh` is the single required check before any merge to `main` — infra
+health, `docker compose config`, `dbmate status`, database schema regression tests
+(`database/tests/run.sh`), and every adapter/service's unit tests. It's designed to grow: each
+new phase that adds a testable service should add its test command as a new step (see the
+Telegram adapter step for the pattern — check the directory exists, skip gracefully if not, so
+the script doesn't need editing by phases that haven't started yet). If a phase adds a new kind
+of check (e.g., an n8n workflow smoke test), add it here rather than leaving it as a one-off
+manual step — that's exactly how the database regression tests came to exist (Phase 2's manual
+`psql` checks were promoted into this script during Phase 3).
 
 ## When NOT to invoke this
 

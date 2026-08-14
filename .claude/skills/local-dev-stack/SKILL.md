@@ -45,3 +45,18 @@ the two when debugging.
 - Changing `docker/postgres/init/*.sql` has **no effect** on an existing volume — that
   directory only runs on first container creation against an empty volume. Schema changes
   after that go through migrations (see the `db-migration` skill), not the init script.
+- **n8n 2.34.6's production webhook URL is NOT `/webhook/<path>`.** It's
+  `/webhook/<workflowId>/webhook/<path>` (confirmed by reading
+  `webhooks/live-webhooks.js`/`webhook.service.js` inside the container and querying the
+  `webhook_entity` table directly — `findStaticWebhookInDb` matches on the full stored
+  `webhookPath`, which is `<workflowId>/webhook/<path>`). Register this full path with any
+  external provider (e.g. Telegram's `setWebhook`), not the shorter path you'd expect from
+  older n8n docs/tutorials.
+- Importing a workflow via `n8n import:workflow` always deactivates it, even if the JSON says
+  `"active": true`. Activate it with `n8n publish:workflow --id=<workflowId>` (the classic
+  `update:workflow --active` command is deprecated in this version), then **restart n8n** —
+  webhook routes are only registered at process startup, so `publish:workflow` alone doesn't
+  make a running instance pick up the new route.
+- `import:workflow`/`import:credentials` require an explicit top-level `"id"` field in the
+  JSON — without one, import fails with `SQLITE_CONSTRAINT: NOT NULL constraint failed`. Any
+  unique string works (IDs aren't auto-generated on import in this version).
