@@ -5,10 +5,10 @@ community, with a separate human-run WhatsApp Community for announcements/discus
 of truth for scope, architecture, and rules: [`docs/project_setup/PROJECT-SPEC.md`](docs/project_setup/PROJECT-SPEC.md).
 
 Full docs:
-- [`docs/project_setup/PROJECT-SPEC.md`](docs/project_setup/PROJECT-SPEC.md) — product spec, security model, architecture, phases.
-- [`docs/project_setup/ARCHITECTURE-FLOWS.md`](docs/project_setup/ARCHITECTURE-FLOWS.md) — diagrams, ERD, sequence flows.
-- [`docs/project_setup/PREPARATION-CHECKLIST.md`](docs/project_setup/PREPARATION-CHECKLIST.md) — preparation phases and the First Implementation Gate.
-- [`docs/architecture/`](docs/architecture/) — ADRs, threat model, data-flow, MVP scope (this repo's Phase 0 deliverables).
+- [`docs/project_setup/PROJECT-SPEC.md`](docs/project_setup/PROJECT-SPEC.md) - product spec, security model, architecture, phases.
+- [`docs/project_setup/ARCHITECTURE-FLOWS.md`](docs/project_setup/ARCHITECTURE-FLOWS.md) - diagrams, ERD, sequence flows.
+- [`docs/project_setup/PREPARATION-CHECKLIST.md`](docs/project_setup/PREPARATION-CHECKLIST.md) - preparation phases and the First Implementation Gate.
+- [`docs/architecture/`](docs/architecture/) - ADRs, threat model, data-flow, MVP scope (this repo's Phase 0 deliverables).
 
 ## Status
 
@@ -21,7 +21,7 @@ No messaging code or n8n workflows exist yet (Phase 3+).
 Prerequisites: [Homebrew](https://brew.sh).
 
 ```sh
-# 1. Install and start the local Docker runtime (Colima — see docs/architecture/adrs/0005)
+# 1. Install and start the local Docker runtime (Colima - see docs/architecture/adrs/0005)
 brew install colima docker docker-compose
 mkdir -p ~/.docker
 jq '. + {"cliPluginsExtraDirs": ["/opt/homebrew/lib/docker/cli-plugins"]}' \
@@ -31,7 +31,7 @@ docker context use colima
 
 # 2. Configure secrets locally (never commit .env)
 cp .env.example .env
-# fill in real values in .env — see docs/project_setup/PREREQUISITES.md
+# fill in real values in .env - see docs/project_setup/PREREQUISITES.md
 
 # 3. Bring up Postgres + pgvector, Redis, n8n, reverse-proxy
 ./scripts/dev-up.sh
@@ -41,10 +41,10 @@ cp .env.example .env
 ```
 
 n8n is reachable at `http://localhost:5678` (through the local reverse proxy). No workflows
-are configured yet — that starts in Phase 3.
+are configured yet - that starts in Phase 3.
 
 ## Security note
 
-`docs/links_and_details.md` contains live credentials/IDs and is gitignored — never remove it
+`docs/links_and_details.md` contains live credentials/IDs and is gitignored - never remove it
 from `.gitignore`, and never put secrets in any other tracked file. See
 `docs/project_setup/PROJECT-SPEC.md` §4.3.

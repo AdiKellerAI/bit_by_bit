@@ -2,7 +2,7 @@
 
 Companion to: PROJECT-SPEC.md §6, ARCHITECTURE-FLOWS.md §1 and §4.
 This document annotates the diagrams already in ARCHITECTURE-FLOWS.md with explicit
-trust-boundary crossings, rather than redrawing them — see that document for the full mermaid
+trust-boundary crossings, rather than redrawing them - see that document for the full mermaid
 source (§1 Core Architecture, §4 Loop 1 Real-Time Sequence).
 
 ## 1. Real-time request lifecycle, annotated
@@ -63,7 +63,7 @@ Send via Messaging Adapter  ─ formats using Telegram-adapter-specific step onl
 User (Telegram)
 
 Telemetry: every branch above (including blocked/flagged/throttled paths) writes to
-PostgreSQL — interaction_logs for normal flow, sensitive_data_events for the detector,
+PostgreSQL - interaction_logs for normal flow, sensitive_data_events for the detector,
 security telemetry for classification blocks. Nothing is silently dropped (PROJECT-SPEC §20).
 ```
 
@@ -88,7 +88,7 @@ Loop 4 (weekly): aggregated interaction_logs + cost data
 ```
 
 Both loops read from PostgreSQL only; neither has a path that writes directly to an active
-system_prompts row or posts directly into the WhatsApp Community — both require the human
+system_prompts row or posts directly into the WhatsApp Community - both require the human
 step shown (ADR-0004; PROJECT-SPEC §6 hard boundary: "The Agent does not post directly into
 ANN or SANDBOX").
 
@@ -96,5 +96,5 @@ ANN or SANDBOX").
 
 Per ADR-0001, the "Messaging Provider" subgraph in ARCHITECTURE-FLOWS.md §1 is the only place
 channel-specific code lives. Everything from the `Webhook` node onward in the diagram above is
-channel-agnostic — normalize-inbound and format-outbound are the only two points where a
+channel-agnostic - normalize-inbound and format-outbound are the only two points where a
 Telegram-specific (or future WhatsApp-specific) implementation is selected.

@@ -1,4 +1,4 @@
-# AI Community Agent — Preparation Guide
+# AI Community Agent - Preparation Guide
 
 Everything you need to prepare before writing the first line of code.
 
@@ -87,12 +87,12 @@ GEMINI_API_KEY=
 
 ---
 
-## 6. Telegram Bot (Primary Agent Channel — do this now)
+## 6. Telegram Bot (Primary Agent Channel - do this now)
 
-**Purpose:** This is the Agent's 1:1 channel for the MVP. Unlike WhatsApp Cloud API, this requires no business verification, no SMS gateway, and no developer account of any kind — it typically takes under two minutes.
+**Purpose:** This is the Agent's 1:1 channel for the MVP. Unlike WhatsApp Cloud API, this requires no business verification, no SMS gateway, and no developer account of any kind - it typically takes under two minutes.
 
 **Steps**
-- Open Telegram (any account is fine — your personal one works).
+- Open Telegram (any account is fine - your personal one works).
 - Search for the user **@BotFather** and start a chat with it.
 - Send the command `/newbot`.
 - Choose a display name for the bot (e.g. "AI Community Agent").
@@ -108,18 +108,18 @@ TELEGRAM_BOT_USERNAME=
 
 ---
 
-## 7. Meta Developer Account (Optional / Future — WhatsApp Cloud API for the Agent)
+## 7. Meta Developer Account (Optional / Future - WhatsApp Cloud API for the Agent)
 
-**Purpose:** Only needed if/when you add a WhatsApp Cloud API adapter for the Agent, in addition to Telegram. **Not required for the MVP** — this must not block any other step.
+**Purpose:** Only needed if/when you add a WhatsApp Cloud API adapter for the Agent, in addition to Telegram. **Not required for the MVP** - this must not block any other step.
 
 **Status:** Previously blocked by SMS verification not arriving after multiple attempts, including a second phone number and going through Accounts Center directly. Leave this parked and revisit later via one of:
 - Meta Business Manager verification first (`business.facebook.com`), then attach WhatsApp
 - a WhatsApp Business Solution Provider (e.g. Twilio, 360dialog) that handles onboarding with their own support
 - a fresh Meta account/device combination, to rule out an account-level block
 
-**Note on the WhatsApp Business app:** You already have the free **WhatsApp Business app** installed (distinct from Cloud API — no developer account needed for the app itself). That's a head start for *this* step: it's the number you'll eventually migrate to Cloud API once Meta unblocks, so there's no separate number to set up later. It does not, by itself, unlock programmatic API access — that still runs through this step.
+**Note on the WhatsApp Business app:** You already have the free **WhatsApp Business app** installed (distinct from Cloud API - no developer account needed for the app itself). That's a head start for *this* step: it's the number you'll eventually migrate to Cloud API once Meta unblocks, so there's no separate number to set up later. It does not, by itself, unlock programmatic API access - that still runs through this step.
 
-**Considered and rejected for now:** unofficial WhatsApp automation libraries (e.g. Baileys, whatsapp-web.js) can drive a WhatsApp number without Cloud API or a Meta Developer Account, by automating the WhatsApp Web protocol. This was deliberately not adopted for this project — it violates WhatsApp's Terms of Service, risks the number being banned, is unsupported and can break without notice, and doesn't fit the security posture the rest of this spec is built around (see PROJECT-SPEC.md §4.8). The Agent stays on Telegram until official Cloud API access is available.
+**Considered and rejected for now:** unofficial WhatsApp automation libraries (e.g. Baileys, whatsapp-web.js) can drive a WhatsApp number without Cloud API or a Meta Developer Account, by automating the WhatsApp Web protocol. This was deliberately not adopted for this project - it violates WhatsApp's Terms of Service, risks the number being banned, is unsupported and can break without notice, and doesn't fit the security posture the rest of this spec is built around (see PROJECT-SPEC.md §4.8). The Agent stays on Telegram until official Cloud API access is available.
 
 **Steps (once unblocked)**
 - Create a Meta Developer account.
@@ -134,7 +134,7 @@ TELEGRAM_BOT_USERNAME=
 
 ---
 
-## 8. WhatsApp Business Cloud API (Optional / Future — depends on step 7)
+## 8. WhatsApp Business Cloud API (Optional / Future - depends on step 7)
 
 **Steps (once step 7 is unblocked)**
 - Inside your Meta app, enable WhatsApp Cloud API.
@@ -152,16 +152,16 @@ BUSINESS_ACCOUNT_ID=
 
 ---
 
-## 9. WhatsApp Community (Human-Run Side — do this now, unrelated to steps 7–8)
+## 9. WhatsApp Community (Human-Run Side - do this now, unrelated to steps 7–8)
 
-**Purpose:** This is the human-administered community (Announcements + Sandbox). It's a completely separate surface from the Agent's 1:1 channel and has **no dependency on the Meta Developer Account or Cloud API** — it's a native feature of the regular WhatsApp app.
+**Purpose:** This is the human-administered community (Announcements + Sandbox). It's a completely separate surface from the Agent's 1:1 channel and has **no dependency on the Meta Developer Account or Cloud API** - it's a native feature of the regular WhatsApp app.
 
-**Important — Business app limitation:** WhatsApp Communities are **not available in the WhatsApp Business app** (this is a real, current WhatsApp limitation, not an outdated-app or account issue). If you only see the option missing on your Business number, that's why. Create the Community from a **regular WhatsApp account** instead — this doesn't conflict with anything else in the plan: the WhatsApp Business number stays reserved for the future Cloud API migration (§7), and the Community is a fully separate track.
+**Important - Business app limitation:** WhatsApp Communities are **not available in the WhatsApp Business app** (this is a real, current WhatsApp limitation, not an outdated-app or account issue). If you only see the option missing on your Business number, that's why. Create the Community from a **regular WhatsApp account** instead - this doesn't conflict with anything else in the plan: the WhatsApp Business number stays reserved for the future Cloud API migration (§7), and the Community is a fully separate track.
 
-**Ownership decision:** the Community is created and owned by a **regular WhatsApp account belonging to a trusted household member** (not the WhatsApp Business number). Immediately after creation, add **your own number as a full admin** of both the Community and every group inside it — WhatsApp's "creator" role has some privileges a regular admin doesn't (e.g. it can't be demoted by other admins in some app versions), so day-to-day control and continuity should not depend on the creator account alone. Store both numbers in your credentials backup (§19) — do not write the actual phone numbers into this document or commit them to the repository.
+**Ownership decision:** the Community is created and owned by a **regular WhatsApp account belonging to a trusted household member** (not the WhatsApp Business number). Immediately after creation, add **your own number as a full admin** of both the Community and every group inside it - WhatsApp's "creator" role has some privileges a regular admin doesn't (e.g. it can't be demoted by other admins in some app versions), so day-to-day control and continuity should not depend on the creator account alone. Store both numbers in your credentials backup (§19) - do not write the actual phone numbers into this document or commit them to the repository.
 
 **Steps**
-- Open regular WhatsApp — not WhatsApp Business — either the mobile app or WhatsApp Web/Desktop (Community creation works from both now; use whichever is more convenient).
+- Open regular WhatsApp - not WhatsApp Business - either the mobile app or WhatsApp Web/Desktop (Community creation works from both now; use whichever is more convenient).
 - Go to the **Communities** tab (mobile: bottom/top tab depending on OS; desktop: Communities icon above the chat list).
 - Tap/click **New Community** (or the **+** / three-dot menu → New Community, depending on app version).
 - Name it, add a description and icon.
@@ -186,7 +186,7 @@ BUSINESS_ACCOUNT_ID=
 **Steps**
 - Create a webhook URL (later using your server).
 - Register the webhook with Telegram using the Bot API's `setWebhook` call and your bot token.
-- If/when WhatsApp Cloud API is added later, repeat the equivalent steps in Meta Developers (Configure Webhook, Verify Token, Subscribe to message events) — additive, not a replacement.
+- If/when WhatsApp Cloud API is added later, repeat the equivalent steps in Meta Developers (Configure Webhook, Verify Token, Subscribe to message events) - additive, not a replacement.
 
 **Save**
 ```env
@@ -273,7 +273,7 @@ TELEGRAM_WEBHOOK_SECRET=
 DATABASE_URL=
 REDIS_URL=
 
-# WhatsApp Cloud API — leave blank until step 7/8 are unblocked
+# WhatsApp Cloud API - leave blank until step 7/8 are unblocked
 WHATSAPP_ACCESS_TOKEN=
 PHONE_NUMBER_ID=
 ```
@@ -308,7 +308,7 @@ knowledge/
   dev_tools.md
 ```
 
-> Remember: PUBLIC information only for the POC — nothing internal, proprietary, or classified.
+> Remember: PUBLIC information only for the POC - nothing internal, proprietary, or classified.
 
 ---
 
@@ -319,7 +319,7 @@ Prepare around 50–100 questions people might ask, for example:
 - "יש פודקאסט טוב למתחילים ב-AI?"
 - "מה חדש בעולם ה-Agents?"
 - "How can AI help with testing?"
-- A few adversarial examples: attempts to paste secrets, credentials, or internal-looking data — to verify the sensitive-data detector blocks and alerts correctly.
+- A few adversarial examples: attempts to paste secrets, credentials, or internal-looking data - to verify the sensitive-data detector blocks and alerts correctly.
 
 These will be used for testing, including the security/sensitive-data pipeline.
 
@@ -342,11 +342,11 @@ Store all important credentials securely in a password manager or encrypted vaul
 
 ## 20. Final Checklist
 
-**Agent channel (Telegram — do now)**
+**Agent channel (Telegram - do now)**
 - [ ] Telegram bot created via @BotFather
 - [ ] Bot token saved
 
-**Community channel (WhatsApp — do now, independent of above)**
+**Community channel (WhatsApp - do now, independent of above)**
 - [ ] WhatsApp Community created
 - [ ] Announcements + Sandbox groups created
 - [ ] Invite link saved
@@ -366,7 +366,7 @@ Store all important credentials securely in a password manager or encrypted vaul
 - [ ] Secure backup of all credentials
 
 **Deferred / optional (not required for MVP)**
-- [x] WhatsApp Business app already installed — number reserved for future Cloud API migration
+- [x] WhatsApp Business app already installed - number reserved for future Cloud API migration
 - [ ] Meta Developer account
 - [ ] WhatsApp Cloud API configured
 - [ ] Permanent WhatsApp access token

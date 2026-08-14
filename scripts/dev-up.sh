@@ -10,7 +10,7 @@ if ! colima status >/dev/null 2>&1; then
 fi
 
 if [ ! -f .env ]; then
-  echo "Missing .env — copy .env.example to .env and fill in real values first." >&2
+  echo "Missing .env - copy .env.example to .env and fill in real values first." >&2
   exit 1
 fi
 

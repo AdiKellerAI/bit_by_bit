@@ -80,7 +80,7 @@ export const SENSITIVE_DATA_PATTERNS: SensitiveDataPattern[] = [
 
   // The following categories are explicitly named in PROJECT-SPEC.md §4.2 but need input
   // from Elbit's security team before real patterns can be written (org-specific vocabulary/
-  // formats) — deliberately left empty, not an oversight. See PREPARATION-CHECKLIST.md §7.3.
+  // formats) - deliberately left empty, not an oversight. See PREPARATION-CHECKLIST.md §7.3.
   // - classification markings (company-specific "CONFIDENTIAL"/"TOP SECRET"-style wording)
   // - internal ticket/case/employee ID formats
   // - source-code fragment detection (regex-only is especially prone to false positives here;

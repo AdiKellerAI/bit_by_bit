@@ -16,7 +16,7 @@ PostgreSQL (+ pgvector for embeddings) is the sole system of record. Redis is us
 - idempotency (webhook dedup, ARCHITECTURE-FLOWS.md §1 `IDEM <--> REDIS`)
 - rate limiting (`RATE <--> REDIS`)
 - semantic cache lookups, backed by a PostgreSQL-stored source of truth (`CACHE <--> REDIS`
-  and `CACHE <--> PG` both appear in the same diagram — Redis fronts, Postgres backs)
+  and `CACHE <--> PG` both appear in the same diagram - Redis fronts, Postgres backs)
 - temporary/session state
 
 No table or value that must survive a Redis flush, restart, or eviction may live in Redis

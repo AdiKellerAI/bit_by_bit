@@ -16,7 +16,7 @@ CREATE TABLE interaction_logs (
     cache_hit                    BOOLEAN NOT NULL DEFAULT false,
     intent                       TEXT,
     -- PROJECT-SPEC.md §4.4's 4-tier list, treated as authoritative over the differing
-    -- 5-tier list in PREPARATION-CHECKLIST.md §7.1 — see docs/architecture/threat-model.md §5.
+    -- 5-tier list in PREPARATION-CHECKLIST.md §7.1 - see docs/architecture/threat-model.md §5.
     security_classification      TEXT CHECK (security_classification IN
                                     ('PUBLIC', 'INTERNAL', 'SENSITIVE', 'CLASSIFIED')),
     sensitive_data_flagged       BOOLEAN NOT NULL DEFAULT false,

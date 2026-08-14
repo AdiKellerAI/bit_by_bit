@@ -1,9 +1,9 @@
-# AI Community Agent — Preparation & Execution Checklist
+# AI Community Agent - Preparation & Execution Checklist
 **Purpose**
 This document is the practical, step-by-step preparation plan before starting implementation
 of the self-improving AI Community Agent.
 Updated: the Agent's 1:1 channel (Telegram, MVP) and the human Community channel (WhatsApp)
-are now prepared and gated independently — a blocker on one never blocks the other.
+are now prepared and gated independently - a blocker on one never blocks the other.
 
 Follow the steps in order. Do not start building the full system before the preparation
 gates are completed.
@@ -11,7 +11,7 @@ gates are completed.
 
 ---
 
-## Phase 0 — Define the MVP
+## Phase 0 - Define the MVP
 
 ### 0.1 Write down the exact MVP
 
@@ -43,7 +43,7 @@ Do not leave these as vague goals such as "good answers" or "low cost."
 
 ---
 
-## Phase 1 — Prepare the Business / Community Material
+## Phase 1 - Prepare the Business / Community Material
 
 ### 1.1 Prepare real examples
 
@@ -99,7 +99,7 @@ Do not feed random documents into the Agent without identifying their authority.
 
 ---
 
-## Phase 2 — Define the Agent Personality
+## Phase 2 - Define the Agent Personality
 
 Prepare a short Agent profile.
 
@@ -137,12 +137,12 @@ Define explicit rules:
 
 ---
 
-## Phase 3 — Messaging Channel Preparation (updated — two independent tracks)
+## Phase 3 - Messaging Channel Preparation (updated - two independent tracks)
 
 Before implementation, decide exactly how each surface will work. These are two separate
 sub-phases with no shared dependency.
 
-### 3.1 Agent channel — Telegram (primary, do this first)
+### 3.1 Agent channel - Telegram (primary, do this first)
 
 Document:
 ```text
@@ -168,7 +168,7 @@ Record:
 
 No business verification, no SMS gateway, no developer account required.
 
-### 3.2 Community channel — WhatsApp (independent, do this any time)
+### 3.2 Community channel - WhatsApp (independent, do this any time)
 
 Document:
 ```text
@@ -182,7 +182,7 @@ v
 Human Admin (manual posting only)
 ```
 
-**Platform note:** WhatsApp Communities are not available in the WhatsApp Business app —
+**Platform note:** WhatsApp Communities are not available in the WhatsApp Business app -
 create it from a regular WhatsApp account instead.
 
 **Ownership/admin setup:**
@@ -190,7 +190,7 @@ create it from a regular WhatsApp account instead.
       trusted household member
 - [ ] Project owner's own number added to the Community and both groups
 - [ ] Project owner's number promoted to admin in the Community and both groups
-- [ ] Both numbers stored in the personal secrets backup — not written into any project
+- [ ] Both numbers stored in the personal secrets backup - not written into any project
       document or committed to the repository
 
 Record:
@@ -202,7 +202,7 @@ Record:
 This requires no API, no developer account, and is not affected by any Agent-channel
 blocker.
 
-### 3.3 Future — WhatsApp Cloud API adapter for the Agent (optional, deferred)
+### 3.3 Future - WhatsApp Cloud API adapter for the Agent (optional, deferred)
 
 Only relevant if/when Meta Developer Account access is unblocked and a decision is made to
 add WhatsApp as a second Agent channel alongside Telegram.
@@ -223,7 +223,7 @@ Use environment variables or a secrets manager.
 
 ---
 
-## Phase 4 — Prepare LLM Providers
+## Phase 4 - Prepare LLM Providers
 
 Prepare accounts for the models you intend to test.
 
@@ -249,7 +249,7 @@ The application should eventually use a Model Registry rather than hardcoded mod
 
 ---
 
-## Phase 5 — Prepare Infrastructure
+## Phase 5 - Prepare Infrastructure
 
 Prepare the development environment.
 
@@ -293,7 +293,7 @@ Webhook can be exposed [ ]
 
 ---
 
-## Phase 6 — Prepare the Database
+## Phase 6 - Prepare the Database
 
 Before coding, approve the initial data model.
 
@@ -328,10 +328,10 @@ Do not use Redis as the authoritative database.
 
 ---
 
-## Phase 7 — Prepare Security Rules
+## Phase 7 - Prepare Security Rules
 
 This phase must be completed before exposing the Agent to real users, and should be
-reviewed with Elbit's security/IT function before any rollout beyond a personal test —
+reviewed with Elbit's security/IT function before any rollout beyond a personal test -
 independent of which messaging platform is used.
 
 ### 7.1 Define data classification
@@ -371,10 +371,10 @@ This is the layer that watches what users type, not just what the system does wi
 
 Define:
 - The exact pattern set to detect (credentials, tokens, personal identifiers, classification
-  markers, internal ticket/employee IDs, source-code fragments) — draft this with input from
+  markers, internal ticket/employee IDs, source-code fragments) - draft this with input from
   Elbit's security team rather than inventing it unilaterally.
 - The required action on detection: block before any LLM call, safe user-facing redirect,
-  write to a dedicated audit table, and notify the admin — every time, not just on
+  write to a dedicated audit table, and notify the admin - every time, not just on
   high-confidence matches.
 - That detection events are never used as LDD training signal.
 - A review cadence for false positives/negatives with the admin.
@@ -382,7 +382,7 @@ Define:
 
 ---
 
-## Phase 8 — Prepare Cost Controls
+## Phase 8 - Prepare Cost Controls
 
 Before using paid LLM APIs, define the budget.
 
@@ -419,7 +419,7 @@ Example:
 
 ---
 
-## Phase 9 — Prepare the Evaluation Dataset
+## Phase 9 - Prepare the Evaluation Dataset
 
 This is one of the most important preparation tasks.
 
@@ -456,7 +456,7 @@ improve the system.
 
 ---
 
-## Phase 10 — Prepare the LDD / Learning Rules
+## Phase 10 - Prepare the LDD / Learning Rules
 
 The Agent should not automatically modify itself and immediately deploy the modification.
 
@@ -491,12 +491,12 @@ Prepare rules defining:
 - How rollback works.
 - How changes are versioned.
 - That sensitive-data detection rules are explicitly out of scope for automatic LDD
-  proposals — changes there require a separate, manual security review process.
+  proposals - changes there require a separate, manual security review process.
 
 
 ---
 
-## Phase 11 — Prepare Feedback
+## Phase 11 - Prepare Feedback
 
 Define the feedback mechanism.
 
@@ -519,14 +519,14 @@ Agent.
 
 ---
 
-## Phase 12 — Prepare Human-in-the-Loop
+## Phase 12 - Prepare Human-in-the-Loop
 
 Define exactly when a human must intervene.
 
 Examples:
 - Agent confidence is too low.
 - User asks for something outside scope.
-- Sensitive information is involved (always — no exceptions).
+- Sensitive information is involved (always - no exceptions).
 - The answer could cause significant harm.
 - The user disputes an answer.
 - Agent receives repeated negative feedback.
@@ -547,7 +547,7 @@ Audit requirement:
 
 ---
 
-## Phase 13 — Prepare Observability
+## Phase 13 - Prepare Observability
 
 Define what must be logged.
 
@@ -570,14 +570,14 @@ At minimum:
 - Human intervention.
 - LDD change ID.
 
-Do not log secrets or unnecessary personal information — including inside sensitive-data
+Do not log secrets or unnecessary personal information - including inside sensitive-data
 audit events themselves; store a redacted excerpt, not the raw sensitive content, wherever
 possible.
 
 
 ---
 
-## Phase 14 — Prepare the Repository
+## Phase 14 - Prepare the Repository
 
 Create the repository structure before asking Cursor to implement.
 
@@ -611,7 +611,7 @@ Copy the architecture documents into docs/.
 
 ---
 
-## Phase 15 — Prepare Cursor
+## Phase 15 - Prepare Cursor
 
 Cursor should receive the architecture documents before implementation.
 
@@ -643,7 +643,7 @@ First:
 
 ---
 
-## Phase 16 — First Implementation Gate
+## Phase 16 - First Implementation Gate
 
 Do NOT start full development until all of these are checked.
 
@@ -653,7 +653,7 @@ Do NOT start full development until all of these are checked.
 - [ ] Scope defined
 - [ ] Out-of-scope defined
 
-**Messaging Channels (updated — two independent tracks)**
+**Messaging Channels (updated - two independent tracks)**
 - [ ] Telegram bot created and responding (Agent channel, required for MVP)
 - [ ] WhatsApp Community created from a regular (non-Business) account (human channel, independent, can be done anytime)
 - [ ] Project owner's number added as full admin of the Community and both groups
@@ -704,7 +704,7 @@ Do NOT start full development until all of these are checked.
 
 ---
 
-## Phase 17 — What You Should Bring to the First Architecture Session
+## Phase 17 - What You Should Bring to the First Architecture Session
 
 When you are ready to start implementation, come with these items:
 
@@ -747,7 +747,7 @@ When you are ready to start implementation, come with these items:
 
 ---
 
-## Phase 18 — Recommended Implementation Order
+## Phase 18 - Recommended Implementation Order
 
 Once preparation is complete, implement in this order:
 ```text
@@ -819,5 +819,5 @@ Continue
 ```
 
 The architecture, security model, cost model and evaluation framework should exist before
-the system is exposed to real users — regardless of which messaging platform is in front of
+the system is exposed to real users - regardless of which messaging platform is in front of
 it.

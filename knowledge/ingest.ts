@@ -16,10 +16,10 @@ const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const DATABASE_URL = process.env.DATABASE_URL;
 
 if (!OPENAI_API_KEY) {
-  throw new Error('OPENAI_API_KEY is not set — run with: node --env-file=../.env ...');
+  throw new Error('OPENAI_API_KEY is not set - run with: node --env-file=../.env ...');
 }
 if (!DATABASE_URL) {
-  throw new Error('DATABASE_URL is not set — run with: node --env-file=../.env ...');
+  throw new Error('DATABASE_URL is not set - run with: node --env-file=../.env ...');
 }
 
 async function embed(text: string): Promise<number[]> {
@@ -52,7 +52,7 @@ async function main(): Promise<void> {
 
   try {
     for (const entry of entries) {
-      // Embedding text includes both languages — an English-only embedding measurably
+      // Embedding text includes both languages - an English-only embedding measurably
       // under-matched real Hebrew queries during Phase 5 testing (best match landed at
       // cosine distance ~0.55, just over the 0.5 threshold, for a Hebrew query about a
       // Hebrew-language seeded podcast). Since the community is Hebrew-primary

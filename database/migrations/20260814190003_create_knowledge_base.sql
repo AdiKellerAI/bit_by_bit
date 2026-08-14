@@ -8,7 +8,7 @@ CREATE TABLE knowledge_base (
     summary_en    TEXT,
     source_type   TEXT,
     trust_level   TEXT,
-    -- 1536 dims targets OpenAI text-embedding-3-small (docs/architecture/adrs — Phase 2 plan);
+    -- 1536 dims targets OpenAI text-embedding-3-small (docs/architecture/adrs - Phase 2 plan);
     -- changing embedding models later requires a migration to resize this column.
     embedding     vector(1536),
     status        TEXT NOT NULL DEFAULT 'draft',

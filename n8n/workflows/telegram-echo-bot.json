@@ -97,7 +97,7 @@
       "parameters": {
         "mode": "runOnceForAllItems",
         "language": "javaScript",
-        "jsCode": "const text = $('Verify & Normalize').item.json.text;\n\n// --- language detection (mirrors shared/language-detect.ts) ---\nconst HEBREW_RANGE = /[\\u0590-\\u05FF]/;\nconst language = HEBREW_RANGE.test(text) ? 'he' : 'en';\n\n// --- classification stub (mirrors security/classification/classify.ts) ---\n// Always PUBLIC for now — see the comment in that file for why. Not a real control yet;\n// the sensitive-data detector below is the real control at this phase.\nconst classification = 'PUBLIC';\n\n// --- sensitive-data detection (mirrors security/sensitive-data-detection/*.ts) ---\nconst PATTERNS = [\n  { id: 'openai-api-key', category: 'credential', regex: /\\bsk-\\s?[A-Za-z0-9]{20,}\\b/ },\n  { id: 'aws-access-key-id', category: 'credential', regex: /\\bAKIA[0-9A-Z]{16}\\b/ },\n  { id: 'google-api-key', category: 'credential', regex: /\\bAIza[0-9A-Za-z_-]{35}\\b/ },\n  { id: 'bearer-token', category: 'credential', regex: /\\bBearer\\s+[A-Za-z0-9._-]{20,}\\b/i },\n  { id: 'generic-secret-assignment', category: 'credential', regex: /\\b(api[_-]?key|secret|token|password|passwd|pwd)\\b\\s*[:=]\\s*['\"]?[^\\s'\"]{6,}['\"]?/i },\n  { id: 'private-key-block', category: 'credential', regex: /-----BEGIN\\s+(RSA|EC|OPENSSH|DSA)?\\s*PRIVATE KEY-----/ },\n  { id: 'email-address', category: 'personal_identifier', regex: /\\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}\\b/ },\n  { id: 'credit-card-like-number', category: 'personal_identifier', regex: /\\b(?:\\d[ -]?){13,19}\\b/ },\n  { id: 'private-ipv4', category: 'internal_network', regex: /\\b(?:10\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}|172\\.(?:1[6-9]|2\\d|3[01])\\.\\d{1,3}\\.\\d{1,3}|192\\.168\\.\\d{1,3}\\.\\d{1,3})\\b/ },\n];\n\nfunction redact(t, match) {\n  const start = match.index;\n  const end = start + match[0].length;\n  const before = t.slice(Math.max(0, start - 15), start);\n  const after = t.slice(end, end + 15);\n  return (before + '*'.repeat(Math.min(match[0].length, 12)) + after).trim();\n}\n\nlet sensitiveResult = { flagged: false };\nfor (const p of PATTERNS) {\n  const m = text.match(p.regex);\n  if (m) {\n    sensitiveResult = { flagged: true, category: p.category, detector: p.id, redactedExcerpt: redact(text, m) };\n    break;\n  }\n}\n\nreturn [{\n  json: {\n    language,\n    classification,\n    sensitive_flagged: sensitiveResult.flagged,\n    sensitive_category: sensitiveResult.category || null,\n    sensitive_detector: sensitiveResult.detector || null,\n    sensitive_redacted_excerpt: sensitiveResult.redactedExcerpt || null,\n  },\n}];\n"
+        "jsCode": "const text = $('Verify & Normalize').item.json.text;\n\n// --- language detection (mirrors shared/language-detect.ts) ---\nconst HEBREW_RANGE = /[\\u0590-\\u05FF]/;\nconst language = HEBREW_RANGE.test(text) ? 'he' : 'en';\n\n// --- classification stub (mirrors security/classification/classify.ts) ---\n// Always PUBLIC for now - see the comment in that file for why. Not a real control yet;\n// the sensitive-data detector below is the real control at this phase.\nconst classification = 'PUBLIC';\n\n// --- sensitive-data detection (mirrors security/sensitive-data-detection/*.ts) ---\nconst PATTERNS = [\n  { id: 'openai-api-key', category: 'credential', regex: /\\bsk-\\s?[A-Za-z0-9]{20,}\\b/ },\n  { id: 'aws-access-key-id', category: 'credential', regex: /\\bAKIA[0-9A-Z]{16}\\b/ },\n  { id: 'google-api-key', category: 'credential', regex: /\\bAIza[0-9A-Za-z_-]{35}\\b/ },\n  { id: 'bearer-token', category: 'credential', regex: /\\bBearer\\s+[A-Za-z0-9._-]{20,}\\b/i },\n  { id: 'generic-secret-assignment', category: 'credential', regex: /\\b(api[_-]?key|secret|token|password|passwd|pwd)\\b\\s*[:=]\\s*['\"]?[^\\s'\"]{6,}['\"]?/i },\n  { id: 'private-key-block', category: 'credential', regex: /-----BEGIN\\s+(RSA|EC|OPENSSH|DSA)?\\s*PRIVATE KEY-----/ },\n  { id: 'email-address', category: 'personal_identifier', regex: /\\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}\\b/ },\n  { id: 'credit-card-like-number', category: 'personal_identifier', regex: /\\b(?:\\d[ -]?){13,19}\\b/ },\n  { id: 'private-ipv4', category: 'internal_network', regex: /\\b(?:10\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}|172\\.(?:1[6-9]|2\\d|3[01])\\.\\d{1,3}\\.\\d{1,3}|192\\.168\\.\\d{1,3}\\.\\d{1,3})\\b/ },\n];\n\nfunction redact(t, match) {\n  const start = match.index;\n  const end = start + match[0].length;\n  const before = t.slice(Math.max(0, start - 15), start);\n  const after = t.slice(end, end + 15);\n  return (before + '*'.repeat(Math.min(match[0].length, 12)) + after).trim();\n}\n\nlet sensitiveResult = { flagged: false };\nfor (const p of PATTERNS) {\n  const m = text.match(p.regex);\n  if (m) {\n    sensitiveResult = { flagged: true, category: p.category, detector: p.id, redactedExcerpt: redact(text, m) };\n    break;\n  }\n}\n\nreturn [{\n  json: {\n    language,\n    classification,\n    sensitive_flagged: sensitiveResult.flagged,\n    sensitive_category: sensitiveResult.category || null,\n    sensitive_detector: sensitiveResult.detector || null,\n    sensitive_redacted_excerpt: sensitiveResult.redactedExcerpt || null,\n  },\n}];\n"
       }
     },
     {
@@ -165,7 +165,7 @@
       "parameters": {
         "resource": "database",
         "operation": "executeQuery",
-        "query": "INSERT INTO interaction_logs (platform_user_id, platform, user_query, security_classification, sensitive_data_flagged, sensitive_data_category, intent)\nVALUES ($1, $2, '[blocked — sensitive data detected]', $3, true, $4, 'blocked_sensitive_data');",
+        "query": "INSERT INTO interaction_logs (platform_user_id, platform, user_query, security_classification, sensitive_data_flagged, sensitive_data_category, intent)\nVALUES ($1, $2, '[blocked - sensitive data detected]', $3, true, $4, 'blocked_sensitive_data');",
         "options": {
           "queryReplacement": "={{ [$('Verify & Normalize').item.json.platform_user_id, $('Verify & Normalize').item.json.platform, $('Detect Language, Classify, Detect Sensitive Data').item.json.classification, $('Detect Language, Classify, Detect Sensitive Data').item.json.sensitive_category] }}"
         }
@@ -290,21 +290,262 @@
       "parameters": {
         "mode": "runOnceForAllItems",
         "language": "javaScript",
-        "jsCode": "// Cosine distance: 0 = identical, 2 = opposite. Start conservative — tune with real\n// usage data, same principle PROJECT-SPEC.md §9 applies to semantic cache thresholds.\nconst DISTANCE_THRESHOLD = 0.5;\n\nconst results = $input.all();\nconst best = results.length > 0 ? results[0].json : null;\n\nif (best && best.distance < DISTANCE_THRESHOLD) {\n  return [{\n    json: {\n      matched: true,\n      matched_id: best.id,\n      title: best.title,\n      url: best.url,\n      summary_he: best.summary_he,\n      summary_en: best.summary_en,\n      distance: best.distance,\n    },\n  }];\n}\n\nreturn [{ json: { matched: false } }];\n"
+        "jsCode": "// Cosine distance: 0 = identical, 2 = opposite. Start conservative - tune with real\n// usage data, same principle PROJECT-SPEC.md §9 applies to semantic cache thresholds.\nconst DISTANCE_THRESHOLD = 0.5;\n\nconst results = $input.all();\nconst best = results.length > 0 ? results[0].json : null;\n\nif (best && best.distance < DISTANCE_THRESHOLD) {\n  return [{\n    json: {\n      matched: true,\n      matched_id: best.id,\n      title: best.title,\n      url: best.url,\n      summary_he: best.summary_he,\n      summary_en: best.summary_en,\n      distance: best.distance,\n    },\n  }];\n}\n\nreturn [{ json: { matched: false } }];\n"
       }
     },
     {
-      "id": "pg-interaction-log-clean-1",
-      "name": "Insert interaction_logs (clean)",
+      "id": "redis-load-history-1",
+      "name": "Load Conversation History",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [2640, -160],
+      "onError": "continueRegularOutput",
+      "parameters": {
+        "operation": "get",
+        "key": "={{ 'conv:' + $('Verify & Normalize').item.json.platform_user_id }}",
+        "keyType": "string",
+        "propertyName": "history_raw",
+        "options": {}
+      },
+      "credentials": {
+        "redis": { "id": "c4e8b2a951f7d360", "name": "Redis (bit_by_bit)" }
+      }
+    },
+    {
+      "id": "pg-get-system-prompt-1",
+      "name": "Get System Prompt",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [2640, -160],
+      "position": [2860, -160],
       "parameters": {
         "resource": "database",
         "operation": "executeQuery",
-        "query": "INSERT INTO interaction_logs (platform_user_id, platform, user_query, security_classification, sensitive_data_flagged, retrieved_kb_ids, intent)\nVALUES ($1, $2, $3, $4, false, $5::jsonb, $6);",
+        "query": "SELECT id, prompt_text FROM system_prompts WHERE is_active = true\nUNION ALL\nSELECT NULL, 'You are a helpful assistant for an AI/dev community.'\nWHERE NOT EXISTS (SELECT 1 FROM system_prompts WHERE is_active = true)\nLIMIT 1;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": { "id": "2ceb9b4a66d1d908", "name": "Postgres (bit_by_bit)" }
+      }
+    },
+    {
+      "id": "pg-get-budget-status-1",
+      "name": "Get Budget Status",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [3080, -160],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "SELECT\n  bp.monthly_budget_usd, bp.daily_budget_usd, bp.warning_threshold, bp.hard_stop_threshold,\n  COALESCE((SELECT SUM(cost_usd) FROM interaction_logs WHERE created_at >= date_trunc('day', now())), 0) AS today_cost,\n  COALESCE((SELECT SUM(cost_usd) FROM interaction_logs WHERE created_at >= date_trunc('month', now())), 0) AS month_cost\nFROM (SELECT 1) AS dummy\nLEFT JOIN budget_policy bp ON true\nLIMIT 1;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": { "id": "2ceb9b4a66d1d908", "name": "Postgres (bit_by_bit)" }
+      }
+    },
+    {
+      "id": "code-budget-guard-1",
+      "name": "Budget Guard",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3300, -160],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const b = $json;\nconst monthlyBudget = Number(b.monthly_budget_usd) || 0;\nconst dailyBudget = Number(b.daily_budget_usd) || 0;\nconst warningThreshold = Number(b.warning_threshold) || 0;\nconst hardStopThreshold = Number(b.hard_stop_threshold) || 0;\nconst monthCost = Number(b.month_cost) || 0;\nconst todayCost = Number(b.today_cost) || 0;\n\nif (!monthlyBudget || !dailyBudget || !warningThreshold || !hardStopThreshold) {\n  return [{ json: { budget_state: 'HARD_STOP', month_cost: monthCost, today_cost: todayCost, monthly_budget_usd: monthlyBudget, daily_budget_usd: dailyBudget } }];\n}\n\nconst RESTRICTED_THRESHOLD = 0.9;\nconst fraction = Math.max(monthCost / monthlyBudget, todayCost / dailyBudget);\n\nlet budgetState;\nif (fraction >= hardStopThreshold) budgetState = 'HARD_STOP';\nelse if (fraction >= RESTRICTED_THRESHOLD) budgetState = 'RESTRICTED';\nelse if (fraction >= warningThreshold) budgetState = 'WARNING';\nelse budgetState = 'NORMAL';\n\nreturn [{ json: { budget_state: budgetState, month_cost: monthCost, today_cost: todayCost, monthly_budget_usd: monthlyBudget, daily_budget_usd: dailyBudget } }];\n"
+      }
+    },
+    {
+      "id": "code-route-tier-1",
+      "name": "Route Model Tier",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3520, -160],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const budgetState = $('Budget Guard').item.json.budget_state;\nconst match = $('Pick Best Match').item.json;\nconst text = $('Verify & Normalize').item.json.text || '';\nif (budgetState === 'HARD_STOP') return [{ json: { tier: 'tier0' } }];\nif (match.matched) return [{ json: { tier: 'tier0' } }];\nif (budgetState === 'RESTRICTED') return [{ json: { tier: 'tier1' } }];\nconst complexityKeywords = /explain in detail|write code|compare|debug|הסבר בפירוט|כתוב קוד|השווה|דיבאג|נפה שגיאות/i;\nconst questionMarkCount = (text.match(/\\?/g) || []).length;\nconst isComplex = text.length > 200 || questionMarkCount > 1 || complexityKeywords.test(text);\nreturn [{ json: { tier: isComplex ? 'tier2' : 'tier1' } }];\n"
+      }
+    },
+    {
+      "id": "if-tier-zero-1",
+      "name": "Tier Is Zero?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [3740, -160],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.tier }}",
+              "rightValue": "tier0",
+              "operator": { "type": "string", "operation": "equals" }
+            }
+          ],
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 2 }
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "code-format-tier0-1",
+      "name": "Format Tier0 Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3960, -300],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const chatId = $('Verify & Normalize').item.json.chat_id;\nconst language = $('Detect Language, Classify, Detect Sensitive Data').item.json.language;\nconst match = $('Pick Best Match').item.json;\nconst budgetState = $('Budget Guard').item.json.budget_state;\n\nlet text, intent;\nif (match.matched) {\n  text = language === 'he'\n    ? `מצאתי את זה: *${match.title}*\\n${match.summary_he}\\n${match.url}`\n    : `Here's what I found: *${match.title}*\\n${match.summary_en}\\n${match.url}`;\n  intent = 'kb_match';\n} else if (budgetState === 'HARD_STOP') {\n  text = language === 'he'\n    ? 'הגעתי למגבלת השימוש היומית שלי. נסה שוב מאוחר יותר.'\n    : \"I've hit today's usage limit. Please try again later.\";\n  intent = 'budget_hard_stop';\n} else {\n  text = language === 'he'\n    ? 'עדיין אין לי משהו ספציפי על זה במאגר הידע שלי.'\n    : \"I don't have anything specific on that yet in my knowledge base.\";\n  intent = 'no_match';\n}\n\nreturn [{ json: { chat_id: chatId, text, agent_response: text, routed_model: 'none', input_tokens: 0, output_tokens: 0, cost_usd: 0, intent } }];\n"
+      }
+    },
+    {
+      "id": "code-prepare-gen-context-1",
+      "name": "Prepare Generation Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3960, -60],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const text = $('Verify & Normalize').item.json.text;\nconst language = $('Detect Language, Classify, Detect Sensitive Data').item.json.language;\nconst match = $('Pick Best Match').item.json;\nconst promptRow = $('Get System Prompt').item.json;\n\nlet historyMessages = [];\ntry {\n  const raw = $('Load Conversation History').item.json.history_raw;\n  if (raw) {\n    const parsed = JSON.parse(raw);\n    if (Array.isArray(parsed)) historyMessages = parsed;\n  }\n} catch (e) { historyMessages = []; }\n\nlet systemText = (promptRow && promptRow.prompt_text) || '';\nif (match && match.matched) {\n  const context = language === 'he' ? match.summary_he : match.summary_en;\n  systemText += `\\n\\nRelevant knowledge base context you can use if helpful (title: \"${match.title}\", url: ${match.url}):\\n${context}`;\n}\n\nreturn [{ json: { system_text: systemText, history_messages: historyMessages, user_text: text } }];\n"
+      }
+    },
+    {
+      "id": "pg-get-model-pricing-1",
+      "name": "Get Model Pricing",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [4180, -60],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "SELECT provider, model_name, input_price_per_1m_tokens, output_price_per_1m_tokens\nFROM model_registry\nWHERE model_name IN ('gpt-5.4-nano', 'claude-sonnet-5') AND enabled = true;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": { "id": "2ceb9b4a66d1d908", "name": "Postgres (bit_by_bit)" }
+      }
+    },
+    {
+      "id": "if-tier-one-1",
+      "name": "Tier Is One?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [4400, -60],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $('Route Model Tier').item.json.tier }}",
+              "rightValue": "tier1",
+              "operator": { "type": "string", "operation": "equals" }
+            }
+          ],
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 2 }
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "http-call-tier1-1",
+      "name": "Call Tier 1 Model",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [4620, -160],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'gpt-5.4-nano', max_completion_tokens: 800, messages: [ { role: 'system', content: $('Prepare Generation Context').item.json.system_text }, ...$('Prepare Generation Context').item.json.history_messages, { role: 'user', content: $('Prepare Generation Context').item.json.user_text }, ] }) }}",
+        "options": {}
+      },
+      "credentials": {
+        "openAiApi": { "id": "53f2686ac5199beb", "name": "OpenAI (bit_by_bit)" }
+      }
+    },
+    {
+      "id": "code-validate-tier1-1",
+      "name": "Validate Tier 1 Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [4840, -160],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const resp = $json;\nconst text = (resp.choices && resp.choices[0] && resp.choices[0].message && resp.choices[0].message.content) || '';\nconst inputTokens = (resp.usage && resp.usage.prompt_tokens) || 0;\nconst outputTokens = (resp.usage && resp.usage.completion_tokens) || 0;\n\nconst pricingRows = $('Get Model Pricing').all().map(i => i.json);\nconst pricing = pricingRows.find(r => r.model_name === 'gpt-5.4-nano') || {};\nconst inputPrice = Number(pricing.input_price_per_1m_tokens) || 0;\nconst outputPrice = Number(pricing.output_price_per_1m_tokens) || 0;\nconst costUsd = (inputTokens / 1e6) * inputPrice + (outputTokens / 1e6) * outputPrice;\n\n// mirrors security/sensitive-data-detection/*.ts - same list as the input-side check in\n// \"Detect Language, Classify, Detect Sensitive Data\" above, copied here for the output side\nconst PATTERNS = [\n  { id: 'openai-api-key', category: 'credential', regex: /\\bsk-\\s?[A-Za-z0-9]{20,}\\b/ },\n  { id: 'aws-access-key-id', category: 'credential', regex: /\\bAKIA[0-9A-Z]{16}\\b/ },\n  { id: 'google-api-key', category: 'credential', regex: /\\bAIza[0-9A-Za-z_-]{35}\\b/ },\n  { id: 'bearer-token', category: 'credential', regex: /\\bBearer\\s+[A-Za-z0-9._-]{20,}\\b/i },\n  { id: 'generic-secret-assignment', category: 'credential', regex: /\\b(api[_-]?key|secret|token|password|passwd|pwd)\\b\\s*[:=]\\s*['\"]?[^\\s'\"]{6,}['\"]?/i },\n  { id: 'private-key-block', category: 'credential', regex: /-----BEGIN\\s+(RSA|EC|OPENSSH|DSA)?\\s*PRIVATE KEY-----/ },\n  { id: 'email-address', category: 'personal_identifier', regex: /\\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}\\b/ },\n  { id: 'credit-card-like-number', category: 'personal_identifier', regex: /\\b(?:\\d[ -]?){13,19}\\b/ },\n  { id: 'private-ipv4', category: 'internal_network', regex: /\\b(?:10\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}|172\\.(?:1[6-9]|2\\d|3[01])\\.\\d{1,3}\\.\\d{1,3}|192\\.168\\.\\d{1,3}\\.\\d{1,3})\\b/ },\n];\nlet flagged = false;\nfor (const p of PATTERNS) { if (p.regex.test(text)) { flagged = true; break; } }\n\nconst language = $('Detect Language, Classify, Detect Sensitive Data').item.json.language;\nconst chatId = $('Verify & Normalize').item.json.chat_id;\n\nlet finalText = text, intent = 'generated_tier1';\nif (!text || flagged) {\n  intent = flagged ? 'output_blocked_sensitive_data' : 'generation_empty';\n  finalText = language === 'he'\n    ? 'מצטער, לא הצלחתי לייצר תשובה בטוחה כרגע. נסה לנסח את השאלה מחדש.'\n    : \"Sorry, I couldn't generate a safe response right now. Try rephrasing your question.\";\n}\n\nreturn [{ json: { chat_id: chatId, text: finalText, agent_response: finalText, routed_model: 'gpt-5.4-nano', input_tokens: inputTokens, output_tokens: outputTokens, cost_usd: costUsd, intent } }];\n"
+      }
+    },
+    {
+      "id": "http-call-tier2-1",
+      "name": "Call Tier 2 Model",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [4620, 40],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "anthropicApi",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'claude-sonnet-5', max_tokens: 1024, system: $('Prepare Generation Context').item.json.system_text, messages: [ ...$('Prepare Generation Context').item.json.history_messages, { role: 'user', content: $('Prepare Generation Context').item.json.user_text }, ] }) }}",
+        "sendHeaders": true,
+        "specifyHeaders": "keypair",
+        "headerParameters": {
+          "parameters": [
+            { "name": "anthropic-version", "value": "2023-06-01" }
+          ]
+        },
+        "options": {}
+      },
+      "credentials": {
+        "anthropicApi": { "id": "a7d4f9c2e13b5680", "name": "Anthropic (bit_by_bit)" }
+      }
+    },
+    {
+      "id": "code-validate-tier2-1",
+      "name": "Validate Tier 2 Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [4840, 40],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const resp = $json;\n// claude-sonnet-5 returns extended-thinking content by default: content[0] is a 'thinking'\n// block (no .text field), the actual answer is the first 'text'-type block, not always at\n// a fixed index - find it explicitly rather than assuming content[0].\nconst textBlock = (resp.content || []).find(b => b.type === 'text');\nconst text = (textBlock && textBlock.text) || '';\nconst inputTokens = (resp.usage && resp.usage.input_tokens) || 0;\nconst outputTokens = (resp.usage && resp.usage.output_tokens) || 0;\n\nconst pricingRows = $('Get Model Pricing').all().map(i => i.json);\nconst pricing = pricingRows.find(r => r.model_name === 'claude-sonnet-5') || {};\nconst inputPrice = Number(pricing.input_price_per_1m_tokens) || 0;\nconst outputPrice = Number(pricing.output_price_per_1m_tokens) || 0;\nconst costUsd = (inputTokens / 1e6) * inputPrice + (outputTokens / 1e6) * outputPrice;\n\n// mirrors security/sensitive-data-detection/*.ts - same list as the input-side check in\n// \"Detect Language, Classify, Detect Sensitive Data\" above, copied here for the output side\nconst PATTERNS = [\n  { id: 'openai-api-key', category: 'credential', regex: /\\bsk-\\s?[A-Za-z0-9]{20,}\\b/ },\n  { id: 'aws-access-key-id', category: 'credential', regex: /\\bAKIA[0-9A-Z]{16}\\b/ },\n  { id: 'google-api-key', category: 'credential', regex: /\\bAIza[0-9A-Za-z_-]{35}\\b/ },\n  { id: 'bearer-token', category: 'credential', regex: /\\bBearer\\s+[A-Za-z0-9._-]{20,}\\b/i },\n  { id: 'generic-secret-assignment', category: 'credential', regex: /\\b(api[_-]?key|secret|token|password|passwd|pwd)\\b\\s*[:=]\\s*['\"]?[^\\s'\"]{6,}['\"]?/i },\n  { id: 'private-key-block', category: 'credential', regex: /-----BEGIN\\s+(RSA|EC|OPENSSH|DSA)?\\s*PRIVATE KEY-----/ },\n  { id: 'email-address', category: 'personal_identifier', regex: /\\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}\\b/ },\n  { id: 'credit-card-like-number', category: 'personal_identifier', regex: /\\b(?:\\d[ -]?){13,19}\\b/ },\n  { id: 'private-ipv4', category: 'internal_network', regex: /\\b(?:10\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}|172\\.(?:1[6-9]|2\\d|3[01])\\.\\d{1,3}\\.\\d{1,3}|192\\.168\\.\\d{1,3}\\.\\d{1,3})\\b/ },\n];\nlet flagged = false;\nfor (const p of PATTERNS) { if (p.regex.test(text)) { flagged = true; break; } }\n\nconst language = $('Detect Language, Classify, Detect Sensitive Data').item.json.language;\nconst chatId = $('Verify & Normalize').item.json.chat_id;\n\nlet finalText = text, intent = 'generated_tier2';\nif (!text || flagged) {\n  intent = flagged ? 'output_blocked_sensitive_data' : 'generation_empty';\n  finalText = language === 'he'\n    ? 'מצטער, לא הצלחתי לייצר תשובה בטוחה כרגע. נסה לנסח את השאלה מחדש.'\n    : \"Sorry, I couldn't generate a safe response right now. Try rephrasing your question.\";\n}\n\nreturn [{ json: { chat_id: chatId, text: finalText, agent_response: finalText, routed_model: 'claude-sonnet-5', input_tokens: inputTokens, output_tokens: outputTokens, cost_usd: costUsd, intent } }];\n"
+      }
+    },
+    {
+      "id": "code-build-conv-update-1",
+      "name": "Build Conversation Update",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [5060, -160],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "let history = [];\ntry {\n  const raw = $('Load Conversation History').item.json.history_raw;\n  if (raw) {\n    const parsed = JSON.parse(raw);\n    if (Array.isArray(parsed)) history = parsed;\n  }\n} catch (e) { history = []; }\n\nconst userText = $('Verify & Normalize').item.json.text;\nhistory.push({ role: 'user', content: userText });\nhistory.push({ role: 'assistant', content: $json.agent_response });\n\nconst MAX_TURNS = 6; // 3 exchanges\nif (history.length > MAX_TURNS) history = history.slice(history.length - MAX_TURNS);\n\nreturn [{\n  json: {\n    ...$json,\n    conv_key: 'conv:' + $('Verify & Normalize').item.json.platform_user_id,\n    history_json: JSON.stringify(history),\n  },\n}];\n"
+      }
+    },
+    {
+      "id": "pg-interaction-log-final-1",
+      "name": "Insert interaction_logs (final)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [5280, -160],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "INSERT INTO interaction_logs (\n  platform_user_id, platform, user_query, agent_response, routed_model,\n  input_tokens, output_tokens, cost_usd, security_classification,\n  sensitive_data_flagged, intent, prompt_version_id, retrieved_kb_ids\n)\nVALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, false, $10, $11, $12::jsonb);",
         "options": {
-          "queryReplacement": "={{ [$('Verify & Normalize').item.json.platform_user_id, $('Verify & Normalize').item.json.platform, $('Verify & Normalize').item.json.text, $('Detect Language, Classify, Detect Sensitive Data').item.json.classification, JSON.stringify($('Pick Best Match').item.json.matched ? [$('Pick Best Match').item.json.matched_id] : []), $('Pick Best Match').item.json.matched ? 'kb_match' : 'no_match'] }}"
+          "queryReplacement": "={{ [ $('Verify & Normalize').item.json.platform_user_id, $('Verify & Normalize').item.json.platform, $('Verify & Normalize').item.json.text, $('Build Conversation Update').item.json.agent_response, $('Build Conversation Update').item.json.routed_model, $('Build Conversation Update').item.json.input_tokens, $('Build Conversation Update').item.json.output_tokens, $('Build Conversation Update').item.json.cost_usd, $('Detect Language, Classify, Detect Sensitive Data').item.json.classification, $('Build Conversation Update').item.json.intent, $('Get System Prompt').item.json.id, JSON.stringify($('Pick Best Match').item.json.matched ? [$('Pick Best Match').item.json.matched_id] : []) ] }}"
         }
       },
       "credentials": {
@@ -312,15 +553,34 @@
       }
     },
     {
-      "id": "code-format-1",
-      "name": "Format Outbound",
+      "id": "redis-save-turn-1",
+      "name": "Save Conversation Turn",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [5500, -160],
+      "parameters": {
+        "operation": "set",
+        "key": "={{ $('Build Conversation Update').item.json.conv_key }}",
+        "value": "={{ $('Build Conversation Update').item.json.history_json }}",
+        "keyType": "string",
+        "expire": true,
+        "ttl": 1800,
+        "options": {}
+      },
+      "credentials": {
+        "redis": { "id": "c4e8b2a951f7d360", "name": "Redis (bit_by_bit)" }
+      }
+    },
+    {
+      "id": "code-prepare-telegram-send-1",
+      "name": "Prepare Telegram Send",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2860, -160],
+      "position": [5720, -160],
       "parameters": {
         "mode": "runOnceForAllItems",
         "language": "javaScript",
-        "jsCode": "const chatId = $('Verify & Normalize').item.json.chat_id;\nconst language = $('Detect Language, Classify, Detect Sensitive Data').item.json.language;\nconst match = $('Pick Best Match').item.json;\n\nlet text;\nif (match.matched) {\n  text = language === 'he'\n    ? `מצאתי את זה: *${match.title}*\\n${match.summary_he}\\n${match.url}`\n    : `Here's what I found: *${match.title}*\\n${match.summary_en}\\n${match.url}`;\n} else {\n  text = language === 'he'\n    ? 'עדיין אין לי משהו ספציפי על זה במאגר הידע שלי.'\n    : \"I don't have anything specific on that yet in my knowledge base.\";\n}\n\nreturn [{ json: { chat_id: chatId, text } }];\n"
+        "jsCode": "return [{ json: {\n  chat_id: $('Build Conversation Update').item.json.chat_id,\n  text: $('Build Conversation Update').item.json.text,\n} }];\n"
       }
     },
     {
@@ -328,7 +588,7 @@
       "name": "Send Telegram Message",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
-      "position": [2420, -160],
+      "position": [5940, -160],
       "parameters": {
         "resource": "message",
         "operation": "sendMessage",
@@ -345,7 +605,7 @@
       "name": "Respond Success",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.4,
-      "position": [2640, -160],
+      "position": [6160, -160],
       "parameters": {
         "respondWith": "text",
         "responseBody": "OK",
@@ -361,7 +621,7 @@
       "parameters": {
         "resource": "database",
         "operation": "executeQuery",
-        "query": "INSERT INTO interaction_logs (platform_user_id, platform, user_query, security_classification, sensitive_data_flagged, intent)\nVALUES ($1, $2, '[blocked — classification]', $3, false, 'blocked_classification');",
+        "query": "INSERT INTO interaction_logs (platform_user_id, platform, user_query, security_classification, sensitive_data_flagged, intent)\nVALUES ($1, $2, '[blocked - classification]', $3, false, 'blocked_classification');",
         "options": {
           "queryReplacement": "={{ [$('Verify & Normalize').item.json.platform_user_id, $('Verify & Normalize').item.json.platform, $('Detect Language, Classify, Detect Sensitive Data').item.json.classification] }}"
         }
@@ -483,12 +743,66 @@
       "main": [[{ "node": "Pick Best Match", "type": "main", "index": 0 }]]
     },
     "Pick Best Match": {
-      "main": [[{ "node": "Insert interaction_logs (clean)", "type": "main", "index": 0 }]]
+      "main": [[{ "node": "Load Conversation History", "type": "main", "index": 0 }]]
     },
-    "Insert interaction_logs (clean)": {
-      "main": [[{ "node": "Format Outbound", "type": "main", "index": 0 }]]
+    "Load Conversation History": {
+      "main": [[{ "node": "Get System Prompt", "type": "main", "index": 0 }]]
     },
-    "Format Outbound": {
+    "Get System Prompt": {
+      "main": [[{ "node": "Get Budget Status", "type": "main", "index": 0 }]]
+    },
+    "Get Budget Status": {
+      "main": [[{ "node": "Budget Guard", "type": "main", "index": 0 }]]
+    },
+    "Budget Guard": {
+      "main": [[{ "node": "Route Model Tier", "type": "main", "index": 0 }]]
+    },
+    "Route Model Tier": {
+      "main": [[{ "node": "Tier Is Zero?", "type": "main", "index": 0 }]]
+    },
+    "Tier Is Zero?": {
+      "main": [
+        [{ "node": "Format Tier0 Response", "type": "main", "index": 0 }],
+        [{ "node": "Prepare Generation Context", "type": "main", "index": 0 }]
+      ]
+    },
+    "Format Tier0 Response": {
+      "main": [[{ "node": "Build Conversation Update", "type": "main", "index": 0 }]]
+    },
+    "Prepare Generation Context": {
+      "main": [[{ "node": "Get Model Pricing", "type": "main", "index": 0 }]]
+    },
+    "Get Model Pricing": {
+      "main": [[{ "node": "Tier Is One?", "type": "main", "index": 0 }]]
+    },
+    "Tier Is One?": {
+      "main": [
+        [{ "node": "Call Tier 1 Model", "type": "main", "index": 0 }],
+        [{ "node": "Call Tier 2 Model", "type": "main", "index": 0 }]
+      ]
+    },
+    "Call Tier 1 Model": {
+      "main": [[{ "node": "Validate Tier 1 Output", "type": "main", "index": 0 }]]
+    },
+    "Validate Tier 1 Output": {
+      "main": [[{ "node": "Build Conversation Update", "type": "main", "index": 0 }]]
+    },
+    "Call Tier 2 Model": {
+      "main": [[{ "node": "Validate Tier 2 Output", "type": "main", "index": 0 }]]
+    },
+    "Validate Tier 2 Output": {
+      "main": [[{ "node": "Build Conversation Update", "type": "main", "index": 0 }]]
+    },
+    "Build Conversation Update": {
+      "main": [[{ "node": "Insert interaction_logs (final)", "type": "main", "index": 0 }]]
+    },
+    "Insert interaction_logs (final)": {
+      "main": [[{ "node": "Save Conversation Turn", "type": "main", "index": 0 }]]
+    },
+    "Save Conversation Turn": {
+      "main": [[{ "node": "Prepare Telegram Send", "type": "main", "index": 0 }]]
+    },
+    "Prepare Telegram Send": {
       "main": [[{ "node": "Send Telegram Message", "type": "main", "index": 0 }]]
     },
     "Send Telegram Message": {
