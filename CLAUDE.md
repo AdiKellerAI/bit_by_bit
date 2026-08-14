@@ -13,10 +13,13 @@ context — see PROJECT-SPEC.md §4 for the full security model.
 
 ## Status
 
-Phase 0-2 done and committed to `main`: architecture docs (`docs/architecture/`), local infra
-(`docker-compose.yml` — Postgres+pgvector, Redis, n8n, Caddy), database schema
-(`database/migrations/`, 11 tables via dbmate). Nothing from Phase 3 onward exists yet — no
-messaging code, no n8n workflows, no application logic.
+Phase 0-4 done and committed to `main`: architecture docs, local infra, database schema
+(Phase 0-2); a live Telegram echo bot with idempotency (Phase 3 —
+`n8n/workflows/telegram-echo-bot.json`, `services/messaging-adapters/telegram/`); a security
+gate — sensitive-data detection (real), classification (PUBLIC-only stub), language detection
+— running before any echo/generation (Phase 4 — `security/`, `shared/`). `interaction_logs`
+writes begin at Phase 4. Next: RAG/knowledge base, then Generation (budget guard + model
+registry + first real LLM calls). Staying local (no hosting migration) until after RAG.
 **Update this line whenever a phase completes** — don't let it go stale.
 
 ## How we work (established this session — follow it, don't re-derive it)
