@@ -89,11 +89,147 @@
       }
     },
     {
+      "id": "code-security-gate-1",
+      "name": "Detect Language, Classify, Detect Sensitive Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1100, -160],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const text = $('Verify & Normalize').item.json.text;\n\n// --- language detection (mirrors shared/language-detect.ts) ---\nconst HEBREW_RANGE = /[\\u0590-\\u05FF]/;\nconst language = HEBREW_RANGE.test(text) ? 'he' : 'en';\n\n// --- classification stub (mirrors security/classification/classify.ts) ---\n// Always PUBLIC for now — see the comment in that file for why. Not a real control yet;\n// the sensitive-data detector below is the real control at this phase.\nconst classification = 'PUBLIC';\n\n// --- sensitive-data detection (mirrors security/sensitive-data-detection/*.ts) ---\nconst PATTERNS = [\n  { id: 'openai-api-key', category: 'credential', regex: /\\bsk-\\s?[A-Za-z0-9]{20,}\\b/ },\n  { id: 'aws-access-key-id', category: 'credential', regex: /\\bAKIA[0-9A-Z]{16}\\b/ },\n  { id: 'google-api-key', category: 'credential', regex: /\\bAIza[0-9A-Za-z_-]{35}\\b/ },\n  { id: 'bearer-token', category: 'credential', regex: /\\bBearer\\s+[A-Za-z0-9._-]{20,}\\b/i },\n  { id: 'generic-secret-assignment', category: 'credential', regex: /\\b(api[_-]?key|secret|token|password|passwd|pwd)\\b\\s*[:=]\\s*['\"]?[^\\s'\"]{6,}['\"]?/i },\n  { id: 'private-key-block', category: 'credential', regex: /-----BEGIN\\s+(RSA|EC|OPENSSH|DSA)?\\s*PRIVATE KEY-----/ },\n  { id: 'email-address', category: 'personal_identifier', regex: /\\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}\\b/ },\n  { id: 'credit-card-like-number', category: 'personal_identifier', regex: /\\b(?:\\d[ -]?){13,19}\\b/ },\n  { id: 'private-ipv4', category: 'internal_network', regex: /\\b(?:10\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}|172\\.(?:1[6-9]|2\\d|3[01])\\.\\d{1,3}\\.\\d{1,3}|192\\.168\\.\\d{1,3}\\.\\d{1,3})\\b/ },\n];\n\nfunction redact(t, match) {\n  const start = match.index;\n  const end = start + match[0].length;\n  const before = t.slice(Math.max(0, start - 15), start);\n  const after = t.slice(end, end + 15);\n  return (before + '*'.repeat(Math.min(match[0].length, 12)) + after).trim();\n}\n\nlet sensitiveResult = { flagged: false };\nfor (const p of PATTERNS) {\n  const m = text.match(p.regex);\n  if (m) {\n    sensitiveResult = { flagged: true, category: p.category, detector: p.id, redactedExcerpt: redact(text, m) };\n    break;\n  }\n}\n\nreturn [{\n  json: {\n    language,\n    classification,\n    sensitive_flagged: sensitiveResult.flagged,\n    sensitive_category: sensitiveResult.category || null,\n    sensitive_detector: sensitiveResult.detector || null,\n    sensitive_redacted_excerpt: sensitiveResult.redactedExcerpt || null,\n  },\n}];\n"
+      }
+    },
+    {
+      "id": "if-sensitive-1",
+      "name": "Sensitive Data Flagged?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [1320, -160],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $('Detect Language, Classify, Detect Sensitive Data').item.json.sensitive_flagged }}",
+              "rightValue": true,
+              "operator": { "type": "boolean", "operation": "equals" }
+            }
+          ],
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 2 }
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "pg-sensitive-event-1",
+      "name": "Insert sensitive_data_events",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1540, -280],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "INSERT INTO sensitive_data_events (platform_user_id, category, detector, redacted_excerpt, action_taken, admin_notified)\nVALUES ($1, $2, $3, $4, 'blocked', true);",
+        "options": {
+          "queryReplacement": "={{ [$('Verify & Normalize').item.json.platform_user_id, $('Detect Language, Classify, Detect Sensitive Data').item.json.sensitive_category, $('Detect Language, Classify, Detect Sensitive Data').item.json.sensitive_detector, $('Detect Language, Classify, Detect Sensitive Data').item.json.sensitive_redacted_excerpt] }}"
+        }
+      },
+      "credentials": {
+        "postgres": { "id": "2ceb9b4a66d1d908", "name": "Postgres (bit_by_bit)" }
+      }
+    },
+    {
+      "id": "telegram-admin-alert-1",
+      "name": "Alert Admin",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [1760, -280],
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "={{ $env.ADMIN_TELEGRAM_CHAT_ID }}",
+        "text": "={{ \"\\u26a0\\ufe0f Sensitive data flagged\\nUser: \" + $('Verify & Normalize').item.json.platform_user_id + \"\\nCategory: \" + $('Detect Language, Classify, Detect Sensitive Data').item.json.sensitive_category + \"\\nDetector: \" + $('Detect Language, Classify, Detect Sensitive Data').item.json.sensitive_detector + \"\\nExcerpt: \" + $('Detect Language, Classify, Detect Sensitive Data').item.json.sensitive_redacted_excerpt }}",
+        "additionalFields": {}
+      },
+      "credentials": {
+        "telegramApi": { "id": "895b9583b757539f", "name": "Telegram Bot (bit_by_bit)" }
+      }
+    },
+    {
+      "id": "pg-interaction-log-flagged-1",
+      "name": "Insert interaction_logs (flagged)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1980, -280],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "INSERT INTO interaction_logs (platform_user_id, platform, user_query, security_classification, sensitive_data_flagged, sensitive_data_category, intent)\nVALUES ($1, $2, '[blocked — sensitive data detected]', $3, true, $4, 'blocked_sensitive_data');",
+        "options": {
+          "queryReplacement": "={{ [$('Verify & Normalize').item.json.platform_user_id, $('Verify & Normalize').item.json.platform, $('Detect Language, Classify, Detect Sensitive Data').item.json.classification, $('Detect Language, Classify, Detect Sensitive Data').item.json.sensitive_category] }}"
+        }
+      },
+      "credentials": {
+        "postgres": { "id": "2ceb9b4a66d1d908", "name": "Postgres (bit_by_bit)" }
+      }
+    },
+    {
+      "id": "telegram-sensitive-redirect-1",
+      "name": "Send Safe Redirect",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [2200, -280],
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "={{ $('Verify & Normalize').item.json.chat_id }}",
+        "text": "={{ $('Detect Language, Classify, Detect Sensitive Data').item.json.language === 'he' ? \"\\u05d0\\u05e0\\u05d9 \\u05dc\\u05d0 \\u05d9\\u05db\\u05d5\\u05dc \\u05dc\\u05e2\\u05d1\\u05d3 \\u05d4\\u05d5\\u05d3\\u05e2\\u05d4 \\u05e9\\u05e0\\u05e8\\u05d0\\u05d9\\u05ea \\u05db\\u05de\\u05d5 \\u05e9\\u05d4\\u05d9\\u05d0 \\u05de\\u05db\\u05d9\\u05dc\\u05d4 \\u05de\\u05d9\\u05d3\\u05e2 \\u05e8\\u05d2\\u05d9\\u05e9 (\\u05db\\u05de\\u05d5 \\u05e1\\u05d9\\u05e1\\u05de\\u05d4 \\u05d0\\u05d5 \\u05de\\u05e4\\u05ea\\u05d7 API). \\u05d4\\u05d4\\u05d5\\u05d3\\u05e2\\u05d4 \\u05e0\\u05d7\\u05e1\\u05de\\u05d4 \\u05d5\\u05dc\\u05d0 \\u05d4\\u05d2\\u05d9\\u05e2\\u05d4 \\u05dc\\u05de\\u05d5\\u05d3\\u05dc.\" : \"I can't process a message that looks like it contains sensitive information (like a password or API key). It's been blocked and never reached the model.\" }}",
+        "additionalFields": {}
+      },
+      "credentials": {
+        "telegramApi": { "id": "895b9583b757539f", "name": "Telegram Bot (bit_by_bit)" }
+      }
+    },
+    {
+      "id": "respond-sensitive-blocked-1",
+      "name": "Respond Sensitive Blocked",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [2420, -280],
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "blocked",
+        "options": { "responseCode": 200 }
+      }
+    },
+    {
+      "id": "if-classification-public-1",
+      "name": "Classification Is PUBLIC?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [1540, -40],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $('Detect Language, Classify, Detect Sensitive Data').item.json.classification }}",
+              "rightValue": "PUBLIC",
+              "operator": { "type": "string", "operation": "equals" }
+            }
+          ],
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 2 }
+        },
+        "options": {}
+      }
+    },
+    {
       "id": "pg-upsert-user-1",
       "name": "Upsert User",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [1100, -160],
+      "position": [1760, -160],
       "parameters": {
         "resource": "database",
         "operation": "executeQuery",
@@ -107,11 +243,29 @@
       }
     },
     {
+      "id": "pg-interaction-log-clean-1",
+      "name": "Insert interaction_logs (clean)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1980, -160],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "INSERT INTO interaction_logs (platform_user_id, platform, user_query, security_classification, sensitive_data_flagged)\nVALUES ($1, $2, $3, $4, false);",
+        "options": {
+          "queryReplacement": "={{ [$('Verify & Normalize').item.json.platform_user_id, $('Verify & Normalize').item.json.platform, $('Verify & Normalize').item.json.text, $('Detect Language, Classify, Detect Sensitive Data').item.json.classification] }}"
+        }
+      },
+      "credentials": {
+        "postgres": { "id": "2ceb9b4a66d1d908", "name": "Postgres (bit_by_bit)" }
+      }
+    },
+    {
       "id": "code-format-1",
       "name": "Format Outbound",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1320, -160],
+      "position": [2200, -160],
       "parameters": {
         "mode": "runOnceForAllItems",
         "language": "javaScript",
@@ -123,7 +277,7 @@
       "name": "Send Telegram Message",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
-      "position": [1540, -160],
+      "position": [2420, -160],
       "parameters": {
         "resource": "message",
         "operation": "sendMessage",
@@ -140,10 +294,57 @@
       "name": "Respond Success",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.4,
-      "position": [1760, -160],
+      "position": [2640, -160],
       "parameters": {
         "respondWith": "text",
         "responseBody": "OK",
+        "options": { "responseCode": 200 }
+      }
+    },
+    {
+      "id": "pg-interaction-log-classification-blocked-1",
+      "name": "Insert interaction_logs (classification blocked)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1760, 80],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "INSERT INTO interaction_logs (platform_user_id, platform, user_query, security_classification, sensitive_data_flagged, intent)\nVALUES ($1, $2, '[blocked — classification]', $3, false, 'blocked_classification');",
+        "options": {
+          "queryReplacement": "={{ [$('Verify & Normalize').item.json.platform_user_id, $('Verify & Normalize').item.json.platform, $('Detect Language, Classify, Detect Sensitive Data').item.json.classification] }}"
+        }
+      },
+      "credentials": {
+        "postgres": { "id": "2ceb9b4a66d1d908", "name": "Postgres (bit_by_bit)" }
+      }
+    },
+    {
+      "id": "telegram-classification-refusal-1",
+      "name": "Send Classification Refusal",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [1980, 80],
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "={{ $('Verify & Normalize').item.json.chat_id }}",
+        "text": "={{ $('Detect Language, Classify, Detect Sensitive Data').item.json.language === 'he' ? \"\\u05d0\\u05e0\\u05d9 \\u05dc\\u05d0 \\u05d9\\u05db\\u05d5\\u05dc \\u05dc\\u05e2\\u05e0\\u05d5\\u05ea \\u05e2\\u05dc \\u05d6\\u05d4. \\u05d0\\u05e4\\u05e9\\u05e8 \\u05dc\\u05e9\\u05d0\\u05d5\\u05dc \\u05d0\\u05d5\\u05ea\\u05d9 \\u05e9\\u05d0\\u05dc\\u05d4 \\u05d0\\u05d7\\u05e8\\u05ea?\" : \"I can't help with that. Feel free to ask me something else!\" }}",
+        "additionalFields": {}
+      },
+      "credentials": {
+        "telegramApi": { "id": "895b9583b757539f", "name": "Telegram Bot (bit_by_bit)" }
+      }
+    },
+    {
+      "id": "respond-classification-blocked-1",
+      "name": "Respond Classification Blocked",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [2200, 80],
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "blocked",
         "options": { "responseCode": 200 }
       }
     },
@@ -190,11 +391,41 @@
     },
     "Is New?": {
       "main": [
-        [{ "node": "Upsert User", "type": "main", "index": 0 }],
+        [{ "node": "Detect Language, Classify, Detect Sensitive Data", "type": "main", "index": 0 }],
         [{ "node": "Respond Duplicate", "type": "main", "index": 0 }]
       ]
     },
+    "Detect Language, Classify, Detect Sensitive Data": {
+      "main": [[{ "node": "Upsert User", "type": "main", "index": 0 }]]
+    },
     "Upsert User": {
+      "main": [[{ "node": "Sensitive Data Flagged?", "type": "main", "index": 0 }]]
+    },
+    "Sensitive Data Flagged?": {
+      "main": [
+        [{ "node": "Insert sensitive_data_events", "type": "main", "index": 0 }],
+        [{ "node": "Classification Is PUBLIC?", "type": "main", "index": 0 }]
+      ]
+    },
+    "Insert sensitive_data_events": {
+      "main": [[{ "node": "Alert Admin", "type": "main", "index": 0 }]]
+    },
+    "Alert Admin": {
+      "main": [[{ "node": "Insert interaction_logs (flagged)", "type": "main", "index": 0 }]]
+    },
+    "Insert interaction_logs (flagged)": {
+      "main": [[{ "node": "Send Safe Redirect", "type": "main", "index": 0 }]]
+    },
+    "Send Safe Redirect": {
+      "main": [[{ "node": "Respond Sensitive Blocked", "type": "main", "index": 0 }]]
+    },
+    "Classification Is PUBLIC?": {
+      "main": [
+        [{ "node": "Insert interaction_logs (clean)", "type": "main", "index": 0 }],
+        [{ "node": "Insert interaction_logs (classification blocked)", "type": "main", "index": 0 }]
+      ]
+    },
+    "Insert interaction_logs (clean)": {
       "main": [[{ "node": "Format Outbound", "type": "main", "index": 0 }]]
     },
     "Format Outbound": {
@@ -202,6 +433,12 @@
     },
     "Send Telegram Message": {
       "main": [[{ "node": "Respond Success", "type": "main", "index": 0 }]]
+    },
+    "Insert interaction_logs (classification blocked)": {
+      "main": [[{ "node": "Send Classification Refusal", "type": "main", "index": 0 }]]
+    },
+    "Send Classification Refusal": {
+      "main": [[{ "node": "Respond Classification Blocked", "type": "main", "index": 0 }]]
     }
   }
 }

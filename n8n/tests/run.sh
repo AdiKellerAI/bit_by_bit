@@ -61,8 +61,57 @@ else
   fail=1
 fi
 
-psql_exec -c "DELETE FROM webhook_events WHERE platform_message_id = '$TEST_UPDATE_ID';" >/dev/null
-psql_exec -c "DELETE FROM users WHERE platform_user_id = '$TEST_USER_ID';" >/dev/null
+# Phase 4: a message containing a fake API key must be blocked, redacted, and audited —
+# never reach interaction_logs.user_query in raw form (PROJECT-SPEC.md §4.2/§4.3).
+SENSITIVE_UPDATE_ID="7$(date +%s)"
+SENSITIVE_USER_ID="6$(date +%s)"
+curl -s -o /dev/null -X POST "$URL" \
+  -H "Content-Type: application/json" \
+  -H "X-Telegram-Bot-Api-Secret-Token: $SECRET" \
+  -d "{\"update_id\": $SENSITIVE_UPDATE_ID, \"message\": {\"message_id\": 1, \"from\": {\"id\": $SENSITIVE_USER_ID}, \"chat\": {\"id\": $SENSITIVE_USER_ID, \"type\": \"private\"}, \"date\": 1735689600, \"text\": \"here is my key sk-abcdefghijklmnopqrstuvwxyz123456\"}}"
+sleep 1
+event_count=$(psql_exec -tAc "SELECT count(*) FROM sensitive_data_events WHERE platform_user_id = '$SENSITIVE_USER_ID' AND detector = 'openai-api-key'" | tr -d '[:space:]')
+if [ "$event_count" = "1" ]; then
+  echo "[x] sensitive-data message recorded in sensitive_data_events"
+else
+  echo "[ ] sensitive-data message recorded in sensitive_data_events (found $event_count rows)"
+  fail=1
+fi
+raw_secret_stored=$(psql_exec -tAc "SELECT count(*) FROM interaction_logs WHERE platform_user_id = '$SENSITIVE_USER_ID' AND user_query LIKE '%sk-abcdefghijklmnopqrstuvwxyz123456%'" | tr -d '[:space:]')
+if [ "$raw_secret_stored" = "0" ]; then
+  echo "[x] raw secret is not stored in interaction_logs.user_query"
+else
+  echo "[ ] raw secret is not stored in interaction_logs.user_query (found $raw_secret_stored rows containing it)"
+  fail=1
+fi
+flagged_logged=$(psql_exec -tAc "SELECT count(*) FROM interaction_logs WHERE platform_user_id = '$SENSITIVE_USER_ID' AND sensitive_data_flagged = true" | tr -d '[:space:]')
+if [ "$flagged_logged" = "1" ]; then
+  echo "[x] flagged interaction_logs row created"
+else
+  echo "[ ] flagged interaction_logs row created (found $flagged_logged rows)"
+  fail=1
+fi
+
+# A clean message should still reach interaction_logs with PUBLIC classification.
+CLEAN_UPDATE_ID="5$(date +%s)"
+CLEAN_USER_ID="4$(date +%s)"
+curl -s -o /dev/null -X POST "$URL" \
+  -H "Content-Type: application/json" \
+  -H "X-Telegram-Bot-Api-Secret-Token: $SECRET" \
+  -d "{\"update_id\": $CLEAN_UPDATE_ID, \"message\": {\"message_id\": 1, \"from\": {\"id\": $CLEAN_USER_ID}, \"chat\": {\"id\": $CLEAN_USER_ID, \"type\": \"private\"}, \"date\": 1735689600, \"text\": \"What is RAG?\"}}"
+sleep 1
+clean_logged=$(psql_exec -tAc "SELECT count(*) FROM interaction_logs WHERE platform_user_id = '$CLEAN_USER_ID' AND security_classification = 'PUBLIC' AND sensitive_data_flagged = false" | tr -d '[:space:]')
+if [ "$clean_logged" = "1" ]; then
+  echo "[x] clean message logged with PUBLIC classification"
+else
+  echo "[ ] clean message logged with PUBLIC classification (found $clean_logged rows)"
+  fail=1
+fi
+
+psql_exec -c "DELETE FROM webhook_events WHERE platform_message_id IN ('$TEST_UPDATE_ID', '$SENSITIVE_UPDATE_ID', '$CLEAN_UPDATE_ID');" >/dev/null
+psql_exec -c "DELETE FROM sensitive_data_events WHERE platform_user_id = '$SENSITIVE_USER_ID';" >/dev/null
+psql_exec -c "DELETE FROM interaction_logs WHERE platform_user_id IN ('$TEST_USER_ID', '$SENSITIVE_USER_ID', '$CLEAN_USER_ID');" >/dev/null
+psql_exec -c "DELETE FROM users WHERE platform_user_id IN ('$TEST_USER_ID', '$SENSITIVE_USER_ID', '$CLEAN_USER_ID');" >/dev/null
 
 if [ "$fail" -eq 0 ]; then
   echo "All n8n Telegram workflow tests passed."

@@ -1,0 +1,9 @@
+{
+  "name": "@bit-by-bit/shared",
+  "private": true,
+  "type": "module",
+  "description": "Channel-agnostic utilities shared across adapters/pipeline stages (e.g. language detection).",
+  "scripts": {
+    "test": "node --experimental-strip-types --test *.test.ts"
+  }
+}
