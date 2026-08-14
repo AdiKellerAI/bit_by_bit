@@ -33,6 +33,14 @@ model registry, first real LLM calls. Staying local (no hosting migration) until
 - **Token-frugal by design and a good user experience are both explicit goals** — not in
   tension by default, but if a cost-saving choice would visibly degrade response quality,
   surface that trade-off rather than silently picking cheap.
+- **Query understanding must tolerate typos/unusual characters and use conversational
+  context**, not just literal/vector matching (added 2026-08-14). This is fundamentally an
+  LLM-level capability — Phase 5's pure embedding search is only mildly typo-tolerant and has
+  zero multi-turn memory. Both requirements land in Generation, not as separate bolt-ons:
+  routing the raw query through an LLM (even Tier 1) naturally absorbs typos/odd characters;
+  conversational context needs an explicit design decision on how much history to carry and
+  where it lives (Redis short-term per ADR-0002, backed by `interaction_logs`/`session_id`
+  for anything durable).
 
 ## How we work (established this session — follow it, don't re-derive it)
 
