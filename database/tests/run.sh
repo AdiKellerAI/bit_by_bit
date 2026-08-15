@@ -41,6 +41,14 @@ else
   echo "[x] interaction_logs rejects unknown platform_user_id"
 fi
 
+if run_sql_file "$(dirname "$0")/04_system_prompts_per_type_active.sql" >/tmp/dbtest_04.log 2>&1; then
+  echo "[x] system_prompts allows different prompt_types to be active simultaneously"
+else
+  echo "[ ] system_prompts allows different prompt_types to be active simultaneously (insert unexpectedly failed)"
+  cat /tmp/dbtest_04.log >&2
+  fail=1
+fi
+
 if [ "$fail" -eq 0 ]; then
   echo "All database tests passed."
 else

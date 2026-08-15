@@ -104,8 +104,11 @@ CREATE TABLE public.interaction_logs (
     prompt_version_id uuid,
     retrieved_kb_ids jsonb,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
+    security_signal text,
+    security_signal_reasoning text,
     CONSTRAINT interaction_logs_platform_check CHECK ((platform = ANY (ARRAY['telegram'::text, 'whatsapp'::text]))),
-    CONSTRAINT interaction_logs_security_classification_check CHECK ((security_classification = ANY (ARRAY['PUBLIC'::text, 'INTERNAL'::text, 'SENSITIVE'::text, 'CLASSIFIED'::text])))
+    CONSTRAINT interaction_logs_security_classification_check CHECK ((security_classification = ANY (ARRAY['PUBLIC'::text, 'INTERNAL'::text, 'SENSITIVE'::text, 'CLASSIFIED'::text]))),
+    CONSTRAINT interaction_logs_security_signal_check CHECK ((security_signal = ANY (ARRAY['PUBLIC'::text, 'INTERNAL'::text, 'SENSITIVE'::text, 'CLASSIFIED'::text])))
 );
 
 
@@ -241,7 +244,9 @@ CREATE TABLE public.system_prompts (
     few_shot_examples jsonb,
     is_active boolean DEFAULT false NOT NULL,
     created_by text,
-    created_at timestamp with time zone DEFAULT now() NOT NULL
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    prompt_type text NOT NULL,
+    CONSTRAINT system_prompts_type_check CHECK ((prompt_type = ANY (ARRAY['base'::text, 'router'::text, 'evaluator'::text, 'digest'::text, 'security'::text])))
 );
 
 
@@ -470,10 +475,10 @@ CREATE INDEX idx_sensitive_data_events_user_created ON public.sensitive_data_eve
 
 
 --
--- Name: idx_system_prompts_one_active; Type: INDEX; Schema: public; Owner: -
+-- Name: idx_system_prompts_one_active_per_type; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX idx_system_prompts_one_active ON public.system_prompts USING btree (is_active) WHERE (is_active = true);
+CREATE UNIQUE INDEX idx_system_prompts_one_active_per_type ON public.system_prompts USING btree (prompt_type) WHERE (is_active = true);
 
 
 --
@@ -568,4 +573,6 @@ INSERT INTO public.schema_migrations (version) VALUES
     ('20260814190011'),
     ('20260814190012'),
     ('20260814190013'),
-    ('20260815120000');
+    ('20260815120000'),
+    ('20260815140000'),
+    ('20260815140001');
