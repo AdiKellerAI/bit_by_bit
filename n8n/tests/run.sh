@@ -178,6 +178,33 @@ else
   fail=1
 fi
 
+# Phase 7: rate limit. Fire 12 rapid requests (no sleep between) for one user - the Check
+# Rate Limit node allows 10 per 60s window, so the 11th/12th should be throttled. Reuses a
+# KB-matching query (see the RAG-match test above) so the allowed 10 cost only a cheap
+# embedding call each, not 10 real generation calls. Response bodies are NOT checked here -
+# every path that sends a Telegram message uses a synthetic chat_id that Telegram rejects
+# with "chat not found", aborting the execution before the final Respond node runs (this is
+# true of every blocked/flagged path in this workflow, not just rate limiting) - interaction_logs
+# is written before the Telegram send, so it's the reliable place to assert from, matching
+# every other blocked-path check above.
+RATE_LIMIT_USER_ID="21$(date +%s)"
+RATE_LIMIT_PREFIX="21$(date +%s)"
+for i in $(seq 1 12); do
+  curl -s -o /dev/null -X POST "$URL" \
+    -H "Content-Type: application/json" \
+    -H "X-Telegram-Bot-Api-Secret-Token: $SECRET" \
+    -d "{\"update_id\": ${RATE_LIMIT_PREFIX}${i}, \"message\": {\"message_id\": $i, \"from\": {\"id\": $RATE_LIMIT_USER_ID}, \"chat\": {\"id\": $RATE_LIMIT_USER_ID, \"type\": \"private\"}, \"date\": 1735689600, \"text\": \"Tell me about LangTalks podcast\"}}"
+done
+sleep 2
+rate_limited_count=$(psql_exec -tAc "SELECT count(*) FROM interaction_logs WHERE platform_user_id = '$RATE_LIMIT_USER_ID' AND intent = 'rate_limited'" | tr -d '[:space:]')
+allowed_count=$(psql_exec -tAc "SELECT count(*) FROM interaction_logs WHERE platform_user_id = '$RATE_LIMIT_USER_ID' AND intent != 'rate_limited'" | tr -d '[:space:]')
+if [ "$rate_limited_count" = "2" ] && [ "$allowed_count" = "10" ]; then
+  echo "[x] 11th/12th rapid request from one user is rate-limited (10 allowed, 2 throttled)"
+else
+  echo "[ ] 11th/12th rapid request from one user is rate-limited (got: $allowed_count allowed, $rate_limited_count throttled)"
+  fail=1
+fi
+
 # Phase 6: output-side sensitive-data check. Real LLMs won't reliably reproduce a fake secret
 # on demand, so rather than forcing a flaky end-to-end Telegram round-trip, this verifies the
 # same PATTERNS regex list used verbatim in the "Validate Tier 1/2 Output" nodes directly
@@ -219,10 +246,10 @@ else
   fail=1
 fi
 
-psql_exec -c "DELETE FROM webhook_events WHERE platform_message_id IN ('$TEST_UPDATE_ID', '$SENSITIVE_UPDATE_ID', '$CLEAN_UPDATE_ID', '$RAG_MATCH_UPDATE_ID', '$RAG_NOMATCH_UPDATE_ID', '$TIER1_UPDATE_ID', '$TIER2_UPDATE_ID');" >/dev/null
+psql_exec -c "DELETE FROM webhook_events WHERE platform_message_id IN ('$TEST_UPDATE_ID', '$SENSITIVE_UPDATE_ID', '$CLEAN_UPDATE_ID', '$RAG_MATCH_UPDATE_ID', '$RAG_NOMATCH_UPDATE_ID', '$TIER1_UPDATE_ID', '$TIER2_UPDATE_ID') OR platform_message_id LIKE '${RATE_LIMIT_PREFIX}%';" >/dev/null
 psql_exec -c "DELETE FROM sensitive_data_events WHERE platform_user_id = '$SENSITIVE_USER_ID';" >/dev/null
-psql_exec -c "DELETE FROM interaction_logs WHERE platform_user_id IN ('$TEST_USER_ID', '$SENSITIVE_USER_ID', '$CLEAN_USER_ID', '$RAG_MATCH_USER_ID', '$RAG_NOMATCH_USER_ID', '$TIER1_USER_ID', '$TIER2_USER_ID');" >/dev/null
-psql_exec -c "DELETE FROM users WHERE platform_user_id IN ('$TEST_USER_ID', '$SENSITIVE_USER_ID', '$CLEAN_USER_ID', '$RAG_MATCH_USER_ID', '$RAG_NOMATCH_USER_ID', '$TIER1_USER_ID', '$TIER2_USER_ID');" >/dev/null
+psql_exec -c "DELETE FROM interaction_logs WHERE platform_user_id IN ('$TEST_USER_ID', '$SENSITIVE_USER_ID', '$CLEAN_USER_ID', '$RAG_MATCH_USER_ID', '$RAG_NOMATCH_USER_ID', '$TIER1_USER_ID', '$TIER2_USER_ID', '$RATE_LIMIT_USER_ID');" >/dev/null
+psql_exec -c "DELETE FROM users WHERE platform_user_id IN ('$TEST_USER_ID', '$SENSITIVE_USER_ID', '$CLEAN_USER_ID', '$RAG_MATCH_USER_ID', '$RAG_NOMATCH_USER_ID', '$TIER1_USER_ID', '$TIER2_USER_ID', '$RATE_LIMIT_USER_ID');" >/dev/null
 
 if [ "$fail" -eq 0 ]; then
   echo "All n8n Telegram workflow tests passed."

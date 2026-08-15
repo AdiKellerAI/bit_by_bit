@@ -89,6 +89,104 @@
       }
     },
     {
+      "id": "redis-rate-limit-1",
+      "name": "Check Rate Limit",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [1000, 40],
+      "onError": "continueRegularOutput",
+      "parameters": {
+        "operation": "incr",
+        "key": "={{ 'ratelimit:' + $('Verify & Normalize').item.json.platform_user_id }}",
+        "expire": true,
+        "ttl": 60,
+        "options": {}
+      },
+      "credentials": {
+        "redis": { "id": "c4e8b2a951f7d360", "name": "Redis (bit_by_bit)" }
+      }
+    },
+    {
+      "id": "code-parse-rate-limit-1",
+      "name": "Parse Rate Limit Count",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1100, 40],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// The redis incr operation returns { json: { [theKeyName]: incrementVal } } - the property\n// name IS the literal Redis key (dynamic, includes platform_user_id), not a fixed field.\n// Normalize into a fixed field name so the next IF node has something stable to check.\n// If Redis was unavailable, \"Check Rate Limit\" failed open (continueRegularOutput) and\n// $json is empty here - Object.values(...)[0] is then undefined, and Number(undefined) is\n// NaN, which fails every comparison in the next IF node, so we default to 0 (not over limit).\nconst count = Object.values($json)[0];\nreturn [{ json: { rate_limit_count: Number(count) || 0 } }];\n"
+      }
+    },
+    {
+      "id": "if-over-rate-limit-1",
+      "name": "Over Rate Limit?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [1220, 40],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.rate_limit_count }}",
+              "rightValue": 10,
+              "operator": { "type": "number", "operation": "gt" }
+            }
+          ],
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 2 }
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "pg-interaction-log-rate-limited-1",
+      "name": "Insert interaction_logs (rate limited)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1440, 200],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "INSERT INTO interaction_logs (platform_user_id, platform, user_query, sensitive_data_flagged, intent)\nVALUES ($1, $2, '[rate limited]', false, 'rate_limited');",
+        "options": {
+          "queryReplacement": "={{ [$('Verify & Normalize').item.json.platform_user_id, $('Verify & Normalize').item.json.platform] }}"
+        }
+      },
+      "credentials": {
+        "postgres": { "id": "2ceb9b4a66d1d908", "name": "Postgres (bit_by_bit)" }
+      }
+    },
+    {
+      "id": "telegram-rate-limited-1",
+      "name": "Send Rate Limited Reply",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [1660, 200],
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "={{ $('Verify & Normalize').item.json.chat_id }}",
+        "text": "={{ \"\\u05d0\\u05ea\\u05d4 \\u05e9\\u05d5\\u05dc\\u05d7 \\u05d4\\u05d5\\u05d3\\u05e2\\u05d5\\u05ea \\u05de\\u05d4\\u05e8 \\u05de\\u05d3\\u05d9. \\u05e0\\u05e1\\u05d4 \\u05e9\\u05d5\\u05d1 \\u05d1\\u05e2\\u05d5\\u05d3 \\u05d3\\u05e7\\u05d4. / You're sending messages too fast. Please try again in a minute.\" }}",
+        "additionalFields": {}
+      },
+      "credentials": {
+        "telegramApi": { "id": "895b9583b757539f", "name": "Telegram Bot (bit_by_bit)" }
+      }
+    },
+    {
+      "id": "respond-rate-limited-1",
+      "name": "Respond Rate Limited",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [1880, 200],
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "rate_limited",
+        "options": { "responseCode": 200 }
+      }
+    },
+    {
       "id": "code-security-gate-1",
       "name": "Detect Language, Classify, Detect Sensitive Data",
       "type": "n8n-nodes-base.code",
@@ -702,9 +800,27 @@
     },
     "Is New?": {
       "main": [
-        [{ "node": "Detect Language, Classify, Detect Sensitive Data", "type": "main", "index": 0 }],
+        [{ "node": "Check Rate Limit", "type": "main", "index": 0 }],
         [{ "node": "Respond Duplicate", "type": "main", "index": 0 }]
       ]
+    },
+    "Check Rate Limit": {
+      "main": [[{ "node": "Parse Rate Limit Count", "type": "main", "index": 0 }]]
+    },
+    "Parse Rate Limit Count": {
+      "main": [[{ "node": "Over Rate Limit?", "type": "main", "index": 0 }]]
+    },
+    "Over Rate Limit?": {
+      "main": [
+        [{ "node": "Insert interaction_logs (rate limited)", "type": "main", "index": 0 }],
+        [{ "node": "Detect Language, Classify, Detect Sensitive Data", "type": "main", "index": 0 }]
+      ]
+    },
+    "Insert interaction_logs (rate limited)": {
+      "main": [[{ "node": "Send Rate Limited Reply", "type": "main", "index": 0 }]]
+    },
+    "Send Rate Limited Reply": {
+      "main": [[{ "node": "Respond Rate Limited", "type": "main", "index": 0 }]]
     },
     "Detect Language, Classify, Detect Sensitive Data": {
       "main": [[{ "node": "Upsert User", "type": "main", "index": 0 }]]
