@@ -43,8 +43,12 @@ command path actually writes to `feedback_score`/`needs_review` - see "Phase 6 L
 design notes" below. **Not yet started:** the rest of Phase 6 - Loop 3 "Meta-Learning" (§11):
 nightly evaluator loop, golden-question evaluation, human approval, rollback. This is the
 project's actual self-improving core and is explicitly agent-driven end to end except for the
-final human-approval gate (ADR-0004); it's blocked on the golden evaluation set, which is Adi's
-own deliverable to prepare, not something to invent. The Evaluator Prompt is seeded and
+final human-approval gate (ADR-0004). The golden evaluation set (`database/seed/golden-eval-cases.sql`,
+22 cases across 15 of ARCHITECTURE-FLOWS.md §16's 16 categories) is now seeded, unblocking the
+Golden Evaluation step - category 11 "Security refusal" is still deliberately excluded, since
+`security/classification/classify.ts` remains a PUBLIC-only stub with no real refusal logic to
+test yet. The evaluator loop mechanics themselves (nightly cron, candidate storage,
+`/approve`/`/reject`/`/rollback`) are still not built. The Evaluator Prompt is seeded and
 waiting. Phase 7 "Weekly Community Automation" (digest/knowledge-gap report/cost report/admin
 alerts; the Digest Prompt is seeded and waiting) not started. Hosting migration (not a numbered
 spec phase, but an explicit hard prerequisite before Phase 8 Pilot) is deliberately still
