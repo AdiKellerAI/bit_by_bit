@@ -200,6 +200,44 @@ else
   fail=1
 fi
 
+# Phase 5: semantic cache write + Security Prompt signal, combined into one flow since they
+# share the same two-request setup. A prior regression (intent went from 'generated_tier1' to
+# 'generated_tier1_question' when the intent router landed, silently breaking the cache's
+# exact-match write-gate check) went undetected for a whole phase because no automated test
+# ever asserted a real cache HIT, only cleanup of any cache rows tests happened to create -
+# this closes that gap for good, not just re-verifies the fix once.
+CACHE_SIGNAL_TEXT="What makes a good code review comment"
+CACHE_UPDATE_ID="39$(date +%s)"
+CACHE_USER_ID="40$(date +%s)"
+curl -s -o /dev/null -X POST "$URL" \
+  -H "Content-Type: application/json" \
+  -H "X-Telegram-Bot-Api-Secret-Token: $SECRET" \
+  -d "{\"update_id\": $CACHE_UPDATE_ID, \"message\": {\"message_id\": 1, \"from\": {\"id\": $CACHE_USER_ID}, \"chat\": {\"id\": $CACHE_USER_ID, \"type\": \"private\"}, \"date\": 1735689600, \"text\": \"$CACHE_SIGNAL_TEXT\"}}"
+sleep 5
+first_signal=$(psql_exec -tAc "SELECT security_signal FROM interaction_logs WHERE platform_user_id = '$CACHE_USER_ID'" | tr -d '[:space:]')
+if [ -n "$first_signal" ]; then
+  echo "[x] Security Prompt signal is populated for a real generation (security_signal: $first_signal)"
+else
+  echo "[ ] Security Prompt signal is populated for a real generation (got empty)"
+  fail=1
+fi
+
+CACHE_UPDATE_ID2="41$(date +%s)"
+CACHE_USER_ID2="42$(date +%s)"
+curl -s -o /dev/null -X POST "$URL" \
+  -H "Content-Type: application/json" \
+  -H "X-Telegram-Bot-Api-Secret-Token: $SECRET" \
+  -d "{\"update_id\": $CACHE_UPDATE_ID2, \"message\": {\"message_id\": 1, \"from\": {\"id\": $CACHE_USER_ID2}, \"chat\": {\"id\": $CACHE_USER_ID2, \"type\": \"private\"}, \"date\": 1735689600, \"text\": \"$CACHE_SIGNAL_TEXT\"}}"
+sleep 3
+cache_row=$(psql_exec -tAc "SELECT cache_hit::text || '|' || COALESCE(security_signal, 'NULL') FROM interaction_logs WHERE platform_user_id = '$CACHE_USER_ID2'" | tr -d '[:space:]')
+if [ "$cache_row" = "true|NULL" ]; then
+  echo "[x] identical follow-up query is a real cache hit, with no fresh security_signal computed for it"
+else
+  echo "[ ] identical follow-up query is a real cache hit with no fresh security_signal (got: $cache_row)"
+  fail=1
+fi
+psql_exec -c "DELETE FROM semantic_cache WHERE query_text = '$CACHE_SIGNAL_TEXT';" >/dev/null
+
 # Phase 7: rate limit. Fire 12 rapid requests (no sleep between) for one user - the Check
 # Rate Limit node allows 10 per 60s window, so the 11th/12th should be throttled. Reuses a
 # KB-matching query (see the RAG-match test above) so the allowed 10 cost only a cheap
@@ -277,10 +315,10 @@ fi
 # cache in the first place (see "Determine Should Cache"), so they don't need listing here.
 psql_exec -c "DELETE FROM semantic_cache WHERE query_text IN ('verify-all test', 'What is RAG?', 'best pizza recipe', 'What''s a quick way to reverse a string in Python?', 'Please explain in detail how a hash table works internally and compare it to a binary search tree for lookup performance.', 'hi');" >/dev/null
 
-psql_exec -c "DELETE FROM webhook_events WHERE platform_message_id IN ('$TEST_UPDATE_ID', '$SENSITIVE_UPDATE_ID', '$CLEAN_UPDATE_ID', '$RAG_MATCH_UPDATE_ID', '$RAG_NOMATCH_UPDATE_ID', '$TIER1_UPDATE_ID', '$TIER2_UPDATE_ID', '$GREETING_UPDATE_ID') OR platform_message_id LIKE '${RATE_LIMIT_PREFIX}%';" >/dev/null
+psql_exec -c "DELETE FROM webhook_events WHERE platform_message_id IN ('$TEST_UPDATE_ID', '$SENSITIVE_UPDATE_ID', '$CLEAN_UPDATE_ID', '$RAG_MATCH_UPDATE_ID', '$RAG_NOMATCH_UPDATE_ID', '$TIER1_UPDATE_ID', '$TIER2_UPDATE_ID', '$GREETING_UPDATE_ID', '$CACHE_UPDATE_ID', '$CACHE_UPDATE_ID2') OR platform_message_id LIKE '${RATE_LIMIT_PREFIX}%';" >/dev/null
 psql_exec -c "DELETE FROM sensitive_data_events WHERE platform_user_id = '$SENSITIVE_USER_ID';" >/dev/null
-psql_exec -c "DELETE FROM interaction_logs WHERE platform_user_id IN ('$TEST_USER_ID', '$SENSITIVE_USER_ID', '$CLEAN_USER_ID', '$RAG_MATCH_USER_ID', '$RAG_NOMATCH_USER_ID', '$TIER1_USER_ID', '$TIER2_USER_ID', '$RATE_LIMIT_USER_ID', '$GREETING_USER_ID');" >/dev/null
-psql_exec -c "DELETE FROM users WHERE platform_user_id IN ('$TEST_USER_ID', '$SENSITIVE_USER_ID', '$CLEAN_USER_ID', '$RAG_MATCH_USER_ID', '$RAG_NOMATCH_USER_ID', '$TIER1_USER_ID', '$TIER2_USER_ID', '$RATE_LIMIT_USER_ID', '$GREETING_USER_ID');" >/dev/null
+psql_exec -c "DELETE FROM interaction_logs WHERE platform_user_id IN ('$TEST_USER_ID', '$SENSITIVE_USER_ID', '$CLEAN_USER_ID', '$RAG_MATCH_USER_ID', '$RAG_NOMATCH_USER_ID', '$TIER1_USER_ID', '$TIER2_USER_ID', '$RATE_LIMIT_USER_ID', '$GREETING_USER_ID', '$CACHE_USER_ID', '$CACHE_USER_ID2');" >/dev/null
+psql_exec -c "DELETE FROM users WHERE platform_user_id IN ('$TEST_USER_ID', '$SENSITIVE_USER_ID', '$CLEAN_USER_ID', '$RAG_MATCH_USER_ID', '$RAG_NOMATCH_USER_ID', '$TIER1_USER_ID', '$TIER2_USER_ID', '$RATE_LIMIT_USER_ID', '$GREETING_USER_ID', '$CACHE_USER_ID', '$CACHE_USER_ID2');" >/dev/null
 
 if [ "$fail" -eq 0 ]; then
   echo "All n8n Telegram workflow tests passed."
