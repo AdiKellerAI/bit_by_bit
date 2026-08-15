@@ -46,9 +46,16 @@ nightly 03:00) selects flagged interactions, calls the Evaluator, synthesizes a 
 prompt, runs it against all 22 golden-eval cases, LLM-judges each answer, and stores a scored
 row in `prompt_change_proposals` (auto-`rejected` below a 90% pass threshold or on any critical
 sensitive-data-case failure, else `pending`) - see "Phase 6 LDD sub-phase 2 design notes" below.
-**Not yet started:** admin commands (`/pending`, `/approve`, `/reject`, `/rollback`, `/prompts`)
-that actually act on those `pending` rows - there was nothing real to act on before this
-sub-phase existed, so this is explicitly next. The golden evaluation set
+**Phase 6 sub-phase 3 (admin commands) is now also complete**: `/pending`, `/prompts`,
+`/approve`+`/confirm approve`, `/reject`, `/rollback`+`/confirm rollback` all live in
+`telegram-echo-bot.json`, gated to `ADMIN_TELEGRAM_CHAT_ID` and exempt from the per-user rate
+limit - see "Phase 6 LDD sub-phase 3 design notes" below. **Phase 6 "LDD" as a whole is now
+functionally complete for v1** (§8's full loop - telemetry, feedback, nightly evaluation, golden
+scoring, human-gated activation/rollback - all exist and were verified end to end); what remains
+is refinement, not missing pieces: §11's three under-instrumented input signals (repeated
+questions, security false positives, low-confidence RAG results - see sub-phase 2's notes) and
+the "Security refusal" golden-eval category (blocked on real classification logic beyond the
+PUBLIC-only stub). The golden evaluation set
 (`database/seed/golden-eval-cases.sql`, 22 cases across 15 of ARCHITECTURE-FLOWS.md §16's 16
 categories) is seeded - category 11 "Security refusal" is still deliberately excluded, since
 `security/classification/classify.ts` remains a PUBLIC-only stub with no real refusal logic to
@@ -274,6 +281,67 @@ memory for the WhatsApp direction, not yet reflected in PROJECT-SPEC.md/this fil
 - **This sub-phase produces `pending`/`rejected` rows but nothing acts on `pending` ones yet.**
   `/approve`/`/reject`/`/rollback`/`/pending`/`/prompts` (§16) are explicitly the next piece,
   not built here - there was nothing real to approve before real scored proposals existed.
+
+### Phase 6 LDD sub-phase 3 design notes (Admin commands, §16)
+
+- **Only the LDD-relevant subset of §16's admin command list is built.** `/status`, `/cost`,
+  `/weekly`, `/gaps`, `/incidents` belong to Phase 7 (Weekly Community Automation) / general
+  admin visibility, not Loop 3 - don't be surprised they're absent, that's intentional scope,
+  not an oversight.
+- **Admin identity gate runs before rate limiting, not after - moved there mid-implementation,
+  not the original design.** Originally placed after `Over Rate Limit?`'s false branch (same
+  spot as `Is Feedback Command?`), which meant a rapid admin session (e.g. testing
+  `/approve`/`/confirm approve` back to back) could hit the same 10-messages/60s cap as ordinary
+  users - confirmed live during this session's own testing. Adi chose to exempt admin commands
+  entirely rather than accept that risk: `Is New?`'s true branch now goes straight to
+  `Is Admin Command?`, which only falls through to `Check Rate Limit` on its false branch -
+  admin commands never touch the rate-limit counter at all.
+- **Chained IF nodes, not the Switch node, for the 7-way command routing** (`/pending`,
+  `/prompts`, `/approve`, `/reject`, `/rollback`, `/confirm approve`, `/confirm rollback`).
+  `n8n-nodes-base.switch`'s `rules.values` shape would have been cleaner for 7 branches but was
+  unverified in this codebase; IF nodes had a fully proven-reliable exact schema by this point
+  in the session. Deliberate verbosity-for-reliability trade-off on a feature that can activate
+  a new Base Prompt for every subsequent conversation.
+- **Two-step text confirmation, not inline buttons, for the two destructive actions.** `/approve
+  <id>` and `/rollback` only ever show what *would* happen; the actual mutation requires a
+  separate `/confirm approve <id>` / `/confirm rollback` message. Stateless by design - each
+  command re-specifies/re-derives everything it needs (the id, or "most recently superseded base
+  version") rather than trusting anything carried over from the prior message, so a stale or
+  out-of-order confirm can't act on outdated assumptions. `/reject` has no confirmation step -
+  §16 only requires confirmation for "prompt activation; rollback", not rejection, which is
+  non-destructive.
+- **A real "0 items silently stops a branch" bug, caught by manual testing, not code review.**
+  `List Pending Proposals` originally used a bare `SELECT ... WHERE status = 'pending'`, which
+  returns zero rows whenever nothing's pending - the exact silent-branch-stop failure mode this
+  project has hit multiple times before (see Phase 4 notes). Fixed with the same
+  `LEFT JOIN LATERAL ... ON true` dummy-row pattern used everywhere else "found or not" needs to
+  reach a downstream node. Every other admin-command lookup was built with this guard from the
+  start; this was the one plain `SELECT` that slipped through.
+- **`UPDATE ... RETURNING` needs a `WITH` CTE, not `LEFT JOIN LATERAL`, for the same
+  zero-rows-safety.** `LEFT JOIN LATERAL` can't wrap a data-modifying statement (INSERT/UPDATE/
+  DELETE) - only `SELECT`. `Reject Proposal` uses `WITH updated AS (UPDATE ... RETURNING id)
+  SELECT u.id FROM (SELECT 1) AS dummy LEFT JOIN updated u ON true LIMIT 1` instead - a new
+  pattern for this codebase, valid standard Postgres (data-modifying CTEs), guarantees exactly
+  one output row whether or not the UPDATE actually matched anything.
+- **Activation is two sequential DB round-trips (deactivate, then insert), not one atomic
+  transaction.** `idx_system_prompts_one_active_per_type` only allows one active `base` row at a
+  time, so the old row must be deactivated before the new one can be inserted as active. There's
+  a small window with zero active base prompts between the two calls - accepted as fine for a
+  rare, admin-triggered, non-hot-path action, consistent with this codebase not using explicit
+  multi-statement transactions anywhere else either.
+- **Rollback reactivates history, it doesn't create a new version.** "Most recently superseded
+  base version" (`is_active = false`, latest `created_at`) gets reactivated in place - no new
+  `system_prompts` row, no new `version_tag`. Matches "never delete historical versions" and
+  avoids an unbounded v1->v2->v3(=v1 again) version-tag mess from repeated rollbacks.
+- **The automated test deliberately never drives the positive admin-gate path through the real
+  webhook.** Doing so would require the real `ADMIN_TELEGRAM_CHAT_ID` to pass the identity check
+  - meaning every `verify-all.sh` run would deliver real Telegram messages to Adi's phone,
+  forever. `n8n/admin-commands/tests/run.sh` instead covers the command-parsing regex in
+  isolation, the actual SQL state transitions directly against Postgres (with explicit save/
+  restore of the real active Base Prompt), and the negative admin-gate case (wrong chat_id, safe
+  via the real webhook since it never delivers). The full positive round-trip for every command
+  and edge case was manually verified once, live, this session - that's the source of confidence
+  the logic works; the automated suite is the regression guard underneath it, not a replay of it.
 
 ## How we work (established this session - follow it, don't re-derive it)
 
