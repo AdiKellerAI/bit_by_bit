@@ -8,7 +8,10 @@
       "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
-      "position": [0, 0],
+      "position": [
+        0,
+        0
+      ],
       "parameters": {
         "httpMethod": "POST",
         "path": "telegram-webhook",
@@ -21,7 +24,10 @@
       "name": "Verify & Normalize",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [220, 0],
+      "position": [
+        220,
+        0
+      ],
       "parameters": {
         "mode": "runOnceForAllItems",
         "language": "javaScript",
@@ -33,7 +39,10 @@
       "name": "Is Valid?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
-      "position": [440, 0],
+      "position": [
+        440,
+        0
+      ],
       "parameters": {
         "conditions": {
           "combinator": "and",
@@ -41,10 +50,18 @@
             {
               "leftValue": "={{ $json.valid }}",
               "rightValue": true,
-              "operator": { "type": "boolean", "operation": "equals" }
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
             }
           ],
-          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 2 }
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          }
         },
         "options": {}
       }
@@ -54,7 +71,10 @@
       "name": "Insert Idempotency",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [660, -80],
+      "position": [
+        660,
+        -80
+      ],
       "parameters": {
         "resource": "database",
         "operation": "executeQuery",
@@ -64,7 +84,10 @@
         }
       },
       "credentials": {
-        "postgres": { "id": "2ceb9b4a66d1d908", "name": "Postgres (bit_by_bit)" }
+        "postgres": {
+          "id": "2ceb9b4a66d1d908",
+          "name": "Postgres (bit_by_bit)"
+        }
       }
     },
     {
@@ -72,7 +95,10 @@
       "name": "Is New?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
-      "position": [880, -80],
+      "position": [
+        880,
+        -80
+      ],
       "parameters": {
         "conditions": {
           "combinator": "and",
@@ -80,10 +106,18 @@
             {
               "leftValue": "={{ $json.is_new }}",
               "rightValue": true,
-              "operator": { "type": "boolean", "operation": "equals" }
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
             }
           ],
-          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 2 }
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          }
         },
         "options": {}
       }
@@ -93,7 +127,10 @@
       "name": "Check Rate Limit",
       "type": "n8n-nodes-base.redis",
       "typeVersion": 1,
-      "position": [1000, 40],
+      "position": [
+        1000,
+        40
+      ],
       "onError": "continueRegularOutput",
       "parameters": {
         "operation": "incr",
@@ -103,7 +140,10 @@
         "options": {}
       },
       "credentials": {
-        "redis": { "id": "c4e8b2a951f7d360", "name": "Redis (bit_by_bit)" }
+        "redis": {
+          "id": "c4e8b2a951f7d360",
+          "name": "Redis (bit_by_bit)"
+        }
       }
     },
     {
@@ -111,7 +151,10 @@
       "name": "Parse Rate Limit Count",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1100, 40],
+      "position": [
+        1100,
+        40
+      ],
       "parameters": {
         "mode": "runOnceForAllItems",
         "language": "javaScript",
@@ -123,7 +166,10 @@
       "name": "Over Rate Limit?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
-      "position": [1220, 40],
+      "position": [
+        1220,
+        40
+      ],
       "parameters": {
         "conditions": {
           "combinator": "and",
@@ -131,10 +177,18 @@
             {
               "leftValue": "={{ $json.rate_limit_count }}",
               "rightValue": 10,
-              "operator": { "type": "number", "operation": "gt" }
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
             }
           ],
-          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 2 }
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          }
         },
         "options": {}
       }
@@ -144,7 +198,10 @@
       "name": "Insert interaction_logs (rate limited)",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [1440, 200],
+      "position": [
+        1440,
+        200
+      ],
       "parameters": {
         "resource": "database",
         "operation": "executeQuery",
@@ -154,7 +211,10 @@
         }
       },
       "credentials": {
-        "postgres": { "id": "2ceb9b4a66d1d908", "name": "Postgres (bit_by_bit)" }
+        "postgres": {
+          "id": "2ceb9b4a66d1d908",
+          "name": "Postgres (bit_by_bit)"
+        }
       }
     },
     {
@@ -162,7 +222,10 @@
       "name": "Send Rate Limited Reply",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
-      "position": [1660, 200],
+      "position": [
+        1660,
+        200
+      ],
       "parameters": {
         "resource": "message",
         "operation": "sendMessage",
@@ -171,7 +234,10 @@
         "additionalFields": {}
       },
       "credentials": {
-        "telegramApi": { "id": "895b9583b757539f", "name": "Telegram Bot (bit_by_bit)" }
+        "telegramApi": {
+          "id": "895b9583b757539f",
+          "name": "Telegram Bot (bit_by_bit)"
+        }
       }
     },
     {
@@ -179,11 +245,16 @@
       "name": "Respond Rate Limited",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.4,
-      "position": [1880, 200],
+      "position": [
+        1880,
+        200
+      ],
       "parameters": {
         "respondWith": "text",
         "responseBody": "rate_limited",
-        "options": { "responseCode": 200 }
+        "options": {
+          "responseCode": 200
+        }
       }
     },
     {
@@ -191,7 +262,10 @@
       "name": "Is Feedback Command?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
-      "position": [1220, 200],
+      "position": [
+        1220,
+        200
+      ],
       "parameters": {
         "conditions": {
           "combinator": "and",
@@ -199,10 +273,18 @@
             {
               "leftValue": "={{ $('Verify & Normalize').item.json.text }}",
               "rightValue": "/^feedback\\s+[01]$/i",
-              "operator": { "type": "string", "operation": "regex" }
+              "operator": {
+                "type": "string",
+                "operation": "regex"
+              }
             }
           ],
-          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 2 }
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          }
         },
         "options": {}
       }
@@ -212,7 +294,10 @@
       "name": "Parse Feedback Command",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1340, 200],
+      "position": [
+        1340,
+        200
+      ],
       "parameters": {
         "mode": "runOnceForAllItems",
         "language": "javaScript",
@@ -224,7 +309,10 @@
       "name": "Find Target Interaction",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [1460, 200],
+      "position": [
+        1460,
+        200
+      ],
       "parameters": {
         "resource": "database",
         "operation": "executeQuery",
@@ -234,7 +322,10 @@
         }
       },
       "credentials": {
-        "postgres": { "id": "2ceb9b4a66d1d908", "name": "Postgres (bit_by_bit)" }
+        "postgres": {
+          "id": "2ceb9b4a66d1d908",
+          "name": "Postgres (bit_by_bit)"
+        }
       }
     },
     {
@@ -242,7 +333,10 @@
       "name": "Found Target Interaction?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
-      "position": [1580, 200],
+      "position": [
+        1580,
+        200
+      ],
       "parameters": {
         "conditions": {
           "combinator": "and",
@@ -250,10 +344,18 @@
             {
               "leftValue": "={{ $json.id }}",
               "rightValue": "",
-              "operator": { "type": "string", "operation": "notEmpty" }
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
             }
           ],
-          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 2 }
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          }
         },
         "options": {}
       }
@@ -263,7 +365,10 @@
       "name": "Update Feedback",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [1700, 140],
+      "position": [
+        1700,
+        140
+      ],
       "parameters": {
         "resource": "database",
         "operation": "executeQuery",
@@ -273,7 +378,10 @@
         }
       },
       "credentials": {
-        "postgres": { "id": "2ceb9b4a66d1d908", "name": "Postgres (bit_by_bit)" }
+        "postgres": {
+          "id": "2ceb9b4a66d1d908",
+          "name": "Postgres (bit_by_bit)"
+        }
       }
     },
     {
@@ -281,7 +389,10 @@
       "name": "Send Feedback Ack",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
-      "position": [1820, 140],
+      "position": [
+        1820,
+        140
+      ],
       "parameters": {
         "resource": "message",
         "operation": "sendMessage",
@@ -290,7 +401,10 @@
         "additionalFields": {}
       },
       "credentials": {
-        "telegramApi": { "id": "895b9583b757539f", "name": "Telegram Bot (bit_by_bit)" }
+        "telegramApi": {
+          "id": "895b9583b757539f",
+          "name": "Telegram Bot (bit_by_bit)"
+        }
       }
     },
     {
@@ -298,11 +412,16 @@
       "name": "Respond Feedback Recorded",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.4,
-      "position": [1940, 140],
+      "position": [
+        1940,
+        140
+      ],
       "parameters": {
         "respondWith": "text",
         "responseBody": "feedback_recorded",
-        "options": { "responseCode": 200 }
+        "options": {
+          "responseCode": 200
+        }
       }
     },
     {
@@ -310,7 +429,10 @@
       "name": "Send No Target Reply",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
-      "position": [1700, 260],
+      "position": [
+        1700,
+        260
+      ],
       "parameters": {
         "resource": "message",
         "operation": "sendMessage",
@@ -319,7 +441,10 @@
         "additionalFields": {}
       },
       "credentials": {
-        "telegramApi": { "id": "895b9583b757539f", "name": "Telegram Bot (bit_by_bit)" }
+        "telegramApi": {
+          "id": "895b9583b757539f",
+          "name": "Telegram Bot (bit_by_bit)"
+        }
       }
     },
     {
@@ -327,11 +452,16 @@
       "name": "Respond No Feedback Target",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.4,
-      "position": [1820, 260],
+      "position": [
+        1820,
+        260
+      ],
       "parameters": {
         "respondWith": "text",
         "responseBody": "no_feedback_target",
-        "options": { "responseCode": 200 }
+        "options": {
+          "responseCode": 200
+        }
       }
     },
     {
@@ -339,7 +469,10 @@
       "name": "Detect Language, Classify, Detect Sensitive Data",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1100, -160],
+      "position": [
+        1100,
+        -160
+      ],
       "parameters": {
         "mode": "runOnceForAllItems",
         "language": "javaScript",
@@ -351,7 +484,10 @@
       "name": "Sensitive Data Flagged?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
-      "position": [1320, -160],
+      "position": [
+        1320,
+        -160
+      ],
       "parameters": {
         "conditions": {
           "combinator": "and",
@@ -359,10 +495,18 @@
             {
               "leftValue": "={{ $('Detect Language, Classify, Detect Sensitive Data').item.json.sensitive_flagged }}",
               "rightValue": true,
-              "operator": { "type": "boolean", "operation": "equals" }
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
             }
           ],
-          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 2 }
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          }
         },
         "options": {}
       }
@@ -372,7 +516,10 @@
       "name": "Insert sensitive_data_events",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [1540, -280],
+      "position": [
+        1540,
+        -280
+      ],
       "parameters": {
         "resource": "database",
         "operation": "executeQuery",
@@ -382,7 +529,10 @@
         }
       },
       "credentials": {
-        "postgres": { "id": "2ceb9b4a66d1d908", "name": "Postgres (bit_by_bit)" }
+        "postgres": {
+          "id": "2ceb9b4a66d1d908",
+          "name": "Postgres (bit_by_bit)"
+        }
       }
     },
     {
@@ -390,7 +540,10 @@
       "name": "Alert Admin",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
-      "position": [1760, -280],
+      "position": [
+        1760,
+        -280
+      ],
       "parameters": {
         "resource": "message",
         "operation": "sendMessage",
@@ -399,7 +552,10 @@
         "additionalFields": {}
       },
       "credentials": {
-        "telegramApi": { "id": "895b9583b757539f", "name": "Telegram Bot (bit_by_bit)" }
+        "telegramApi": {
+          "id": "895b9583b757539f",
+          "name": "Telegram Bot (bit_by_bit)"
+        }
       }
     },
     {
@@ -407,7 +563,10 @@
       "name": "Insert interaction_logs (flagged)",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [1980, -280],
+      "position": [
+        1980,
+        -280
+      ],
       "parameters": {
         "resource": "database",
         "operation": "executeQuery",
@@ -417,7 +576,10 @@
         }
       },
       "credentials": {
-        "postgres": { "id": "2ceb9b4a66d1d908", "name": "Postgres (bit_by_bit)" }
+        "postgres": {
+          "id": "2ceb9b4a66d1d908",
+          "name": "Postgres (bit_by_bit)"
+        }
       }
     },
     {
@@ -425,7 +587,10 @@
       "name": "Send Safe Redirect",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
-      "position": [2200, -280],
+      "position": [
+        2200,
+        -280
+      ],
       "parameters": {
         "resource": "message",
         "operation": "sendMessage",
@@ -434,7 +599,10 @@
         "additionalFields": {}
       },
       "credentials": {
-        "telegramApi": { "id": "895b9583b757539f", "name": "Telegram Bot (bit_by_bit)" }
+        "telegramApi": {
+          "id": "895b9583b757539f",
+          "name": "Telegram Bot (bit_by_bit)"
+        }
       }
     },
     {
@@ -442,11 +610,16 @@
       "name": "Respond Sensitive Blocked",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.4,
-      "position": [2420, -280],
+      "position": [
+        2420,
+        -280
+      ],
       "parameters": {
         "respondWith": "text",
         "responseBody": "blocked",
-        "options": { "responseCode": 200 }
+        "options": {
+          "responseCode": 200
+        }
       }
     },
     {
@@ -454,7 +627,10 @@
       "name": "Classification Is PUBLIC?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
-      "position": [1540, -40],
+      "position": [
+        1540,
+        -40
+      ],
       "parameters": {
         "conditions": {
           "combinator": "and",
@@ -462,10 +638,18 @@
             {
               "leftValue": "={{ $('Detect Language, Classify, Detect Sensitive Data').item.json.classification }}",
               "rightValue": "PUBLIC",
-              "operator": { "type": "string", "operation": "equals" }
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
             }
           ],
-          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 2 }
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          }
         },
         "options": {}
       }
@@ -475,7 +659,10 @@
       "name": "Upsert User",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [1760, -160],
+      "position": [
+        1760,
+        -160
+      ],
       "parameters": {
         "resource": "database",
         "operation": "executeQuery",
@@ -485,7 +672,10 @@
         }
       },
       "credentials": {
-        "postgres": { "id": "2ceb9b4a66d1d908", "name": "Postgres (bit_by_bit)" }
+        "postgres": {
+          "id": "2ceb9b4a66d1d908",
+          "name": "Postgres (bit_by_bit)"
+        }
       }
     },
     {
@@ -493,7 +683,10 @@
       "name": "Embed Query",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1980, -160],
+      "position": [
+        1980,
+        -160
+      ],
       "parameters": {
         "method": "POST",
         "url": "https://api.openai.com/v1/embeddings",
@@ -506,7 +699,10 @@
         "options": {}
       },
       "credentials": {
-        "openAiApi": { "id": "53f2686ac5199beb", "name": "OpenAI (bit_by_bit)" }
+        "openAiApi": {
+          "id": "53f2686ac5199beb",
+          "name": "OpenAI (bit_by_bit)"
+        }
       }
     },
     {
@@ -514,11 +710,14 @@
       "name": "Check Cache Eligible",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2000, -260],
+      "position": [
+        2000,
+        -260
+      ],
       "parameters": {
         "mode": "runOnceForAllItems",
         "language": "javaScript",
-        "jsCode": "const text = $('Verify & Normalize').item.json.text || '';\n\nlet historyMessages = [];\ntry {\n  const raw = $('Load Conversation History').item.json.history_raw;\n  if (raw) {\n    const parsed = JSON.parse(raw);\n    if (Array.isArray(parsed)) historyMessages = parsed;\n  }\n} catch (e) { historyMessages = []; }\n\n// Semantic-cache eligibility per PROJECT-SPEC.md §9: \"no personalized context\" (only a fresh\n// conversation, no prior turns) and \"no time-sensitive question\". Gates both the cache lookup\n// (Search Semantic Cache) and the cache write (Determine Should Cache reuses this same value).\nconst TIME_SENSITIVE = /today|now|latest|current|this week|היום|עכשיו|אחרון|השבוע/i;\nconst cacheEligible = historyMessages.length === 0 && !TIME_SENSITIVE.test(text);\n\nreturn [{ json: { cache_eligible: cacheEligible } }];\n"
+        "jsCode": "const text = $('Verify & Normalize').item.json.text || '';\n\nlet historyMessages = [];\ntry {\n  const raw = $('Load Conversation History').item.json.history_raw;\n  if (raw) {\n    const parsed = JSON.parse(raw);\n    if (Array.isArray(parsed)) historyMessages = parsed;\n  }\n} catch (e) { historyMessages = []; }\n\n// Semantic-cache eligibility per PROJECT-SPEC.md \u00a79: \"no personalized context\" (only a fresh\n// conversation, no prior turns) and \"no time-sensitive question\". Gates both the cache lookup\n// (Search Semantic Cache) and the cache write (Determine Should Cache reuses this same value).\nconst TIME_SENSITIVE = /today|now|latest|current|this week|\u05d4\u05d9\u05d5\u05dd|\u05e2\u05db\u05e9\u05d9\u05d5|\u05d0\u05d7\u05e8\u05d5\u05df|\u05d4\u05e9\u05d1\u05d5\u05e2/i;\nconst cacheEligible = historyMessages.length === 0 && !TIME_SENSITIVE.test(text);\n\nreturn [{ json: { cache_eligible: cacheEligible } }];\n"
       }
     },
     {
@@ -526,7 +725,10 @@
       "name": "Search Semantic Cache",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [2200, -260],
+      "position": [
+        2200,
+        -260
+      ],
       "parameters": {
         "resource": "database",
         "operation": "executeQuery",
@@ -536,7 +738,10 @@
         }
       },
       "credentials": {
-        "postgres": { "id": "2ceb9b4a66d1d908", "name": "Postgres (bit_by_bit)" }
+        "postgres": {
+          "id": "2ceb9b4a66d1d908",
+          "name": "Postgres (bit_by_bit)"
+        }
       }
     },
     {
@@ -544,7 +749,10 @@
       "name": "Cache Hit?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
-      "position": [2420, -260],
+      "position": [
+        2420,
+        -260
+      ],
       "parameters": {
         "conditions": {
           "combinator": "and",
@@ -552,10 +760,18 @@
             {
               "leftValue": "={{ $json.id }}",
               "rightValue": "",
-              "operator": { "type": "string", "operation": "notEmpty" }
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
             }
           ],
-          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 2 }
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          }
         },
         "options": {}
       }
@@ -565,7 +781,10 @@
       "name": "Format Cached Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2640, -360],
+      "position": [
+        2640,
+        -360
+      ],
       "parameters": {
         "mode": "runOnceForAllItems",
         "language": "javaScript",
@@ -577,7 +796,10 @@
       "name": "Update Cache Hit Count",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [2640, -160],
+      "position": [
+        2640,
+        -160
+      ],
       "parameters": {
         "resource": "database",
         "operation": "executeQuery",
@@ -587,7 +809,10 @@
         }
       },
       "credentials": {
-        "postgres": { "id": "2ceb9b4a66d1d908", "name": "Postgres (bit_by_bit)" }
+        "postgres": {
+          "id": "2ceb9b4a66d1d908",
+          "name": "Postgres (bit_by_bit)"
+        }
       }
     },
     {
@@ -595,7 +820,10 @@
       "name": "Get Router Prompt",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [2440, -220],
+      "position": [
+        2440,
+        -220
+      ],
       "parameters": {
         "resource": "database",
         "operation": "executeQuery",
@@ -603,7 +831,10 @@
         "options": {}
       },
       "credentials": {
-        "postgres": { "id": "2ceb9b4a66d1d908", "name": "Postgres (bit_by_bit)" }
+        "postgres": {
+          "id": "2ceb9b4a66d1d908",
+          "name": "Postgres (bit_by_bit)"
+        }
       }
     },
     {
@@ -611,7 +842,10 @@
       "name": "Get Router Model",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [2530, -220],
+      "position": [
+        2530,
+        -220
+      ],
       "parameters": {
         "resource": "database",
         "operation": "executeQuery",
@@ -619,7 +853,10 @@
         "options": {}
       },
       "credentials": {
-        "postgres": { "id": "2ceb9b4a66d1d908", "name": "Postgres (bit_by_bit)" }
+        "postgres": {
+          "id": "2ceb9b4a66d1d908",
+          "name": "Postgres (bit_by_bit)"
+        }
       }
     },
     {
@@ -627,7 +864,10 @@
       "name": "Classify Intent",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [2620, -160],
+      "position": [
+        2620,
+        -160
+      ],
       "parameters": {
         "method": "POST",
         "url": "https://api.openai.com/v1/chat/completions",
@@ -640,7 +880,10 @@
         "options": {}
       },
       "credentials": {
-        "openAiApi": { "id": "53f2686ac5199beb", "name": "OpenAI (bit_by_bit)" }
+        "openAiApi": {
+          "id": "53f2686ac5199beb",
+          "name": "OpenAI (bit_by_bit)"
+        }
       }
     },
     {
@@ -648,7 +891,10 @@
       "name": "Parse Intent",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2740, -160],
+      "position": [
+        2740,
+        -160
+      ],
       "parameters": {
         "mode": "runOnceForAllItems",
         "language": "javaScript",
@@ -660,7 +906,10 @@
       "name": "Get Security Prompt",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [2860, -160],
+      "position": [
+        2860,
+        -160
+      ],
       "parameters": {
         "resource": "database",
         "operation": "executeQuery",
@@ -668,7 +917,10 @@
         "options": {}
       },
       "credentials": {
-        "postgres": { "id": "2ceb9b4a66d1d908", "name": "Postgres (bit_by_bit)" }
+        "postgres": {
+          "id": "2ceb9b4a66d1d908",
+          "name": "Postgres (bit_by_bit)"
+        }
       }
     },
     {
@@ -676,7 +928,10 @@
       "name": "Get Security Model",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [2960, -160],
+      "position": [
+        2960,
+        -160
+      ],
       "parameters": {
         "resource": "database",
         "operation": "executeQuery",
@@ -684,7 +939,10 @@
         "options": {}
       },
       "credentials": {
-        "postgres": { "id": "2ceb9b4a66d1d908", "name": "Postgres (bit_by_bit)" }
+        "postgres": {
+          "id": "2ceb9b4a66d1d908",
+          "name": "Postgres (bit_by_bit)"
+        }
       }
     },
     {
@@ -692,7 +950,10 @@
       "name": "Classify Security Signal",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [3060, -160],
+      "position": [
+        3060,
+        -160
+      ],
       "parameters": {
         "method": "POST",
         "url": "https://api.openai.com/v1/chat/completions",
@@ -705,7 +966,10 @@
         "options": {}
       },
       "credentials": {
-        "openAiApi": { "id": "53f2686ac5199beb", "name": "OpenAI (bit_by_bit)" }
+        "openAiApi": {
+          "id": "53f2686ac5199beb",
+          "name": "OpenAI (bit_by_bit)"
+        }
       }
     },
     {
@@ -713,7 +977,10 @@
       "name": "Parse Security Signal",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [3160, -160],
+      "position": [
+        3160,
+        -160
+      ],
       "parameters": {
         "mode": "runOnceForAllItems",
         "language": "javaScript",
@@ -725,7 +992,10 @@
       "name": "Search Knowledge Base",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [2200, -160],
+      "position": [
+        2200,
+        -160
+      ],
       "parameters": {
         "resource": "database",
         "operation": "executeQuery",
@@ -735,7 +1005,10 @@
         }
       },
       "credentials": {
-        "postgres": { "id": "2ceb9b4a66d1d908", "name": "Postgres (bit_by_bit)" }
+        "postgres": {
+          "id": "2ceb9b4a66d1d908",
+          "name": "Postgres (bit_by_bit)"
+        }
       }
     },
     {
@@ -743,11 +1016,14 @@
       "name": "Pick Best Match",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2420, -160],
+      "position": [
+        2420,
+        -160
+      ],
       "parameters": {
         "mode": "runOnceForAllItems",
         "language": "javaScript",
-        "jsCode": "// Cosine distance: 0 = identical, 2 = opposite. Start conservative - tune with real\n// usage data, same principle PROJECT-SPEC.md §9 applies to semantic cache thresholds.\nconst DISTANCE_THRESHOLD = 0.5;\n\nconst results = $input.all();\nconst best = results.length > 0 ? results[0].json : null;\n\nif (best && best.distance < DISTANCE_THRESHOLD) {\n  return [{\n    json: {\n      matched: true,\n      matched_id: best.id,\n      title: best.title,\n      url: best.url,\n      summary_he: best.summary_he,\n      summary_en: best.summary_en,\n      distance: best.distance,\n    },\n  }];\n}\n\nreturn [{ json: { matched: false } }];\n"
+        "jsCode": "// Cosine distance: 0 = identical, 2 = opposite. Start conservative - tune with real\n// usage data, same principle PROJECT-SPEC.md \u00a79 applies to semantic cache thresholds.\nconst DISTANCE_THRESHOLD = 0.5;\n\nconst results = $input.all();\nconst best = results.length > 0 ? results[0].json : null;\n\nif (best && best.distance < DISTANCE_THRESHOLD) {\n  return [{\n    json: {\n      matched: true,\n      matched_id: best.id,\n      title: best.title,\n      url: best.url,\n      summary_he: best.summary_he,\n      summary_en: best.summary_en,\n      distance: best.distance,\n    },\n  }];\n}\n\nreturn [{ json: { matched: false } }];\n"
       }
     },
     {
@@ -755,7 +1031,10 @@
       "name": "Load Conversation History",
       "type": "n8n-nodes-base.redis",
       "typeVersion": 1,
-      "position": [2640, -160],
+      "position": [
+        2640,
+        -160
+      ],
       "onError": "continueRegularOutput",
       "parameters": {
         "operation": "get",
@@ -765,7 +1044,10 @@
         "options": {}
       },
       "credentials": {
-        "redis": { "id": "c4e8b2a951f7d360", "name": "Redis (bit_by_bit)" }
+        "redis": {
+          "id": "c4e8b2a951f7d360",
+          "name": "Redis (bit_by_bit)"
+        }
       }
     },
     {
@@ -773,7 +1055,10 @@
       "name": "Get System Prompt",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [2860, -160],
+      "position": [
+        2860,
+        -160
+      ],
       "parameters": {
         "resource": "database",
         "operation": "executeQuery",
@@ -781,7 +1066,10 @@
         "options": {}
       },
       "credentials": {
-        "postgres": { "id": "2ceb9b4a66d1d908", "name": "Postgres (bit_by_bit)" }
+        "postgres": {
+          "id": "2ceb9b4a66d1d908",
+          "name": "Postgres (bit_by_bit)"
+        }
       }
     },
     {
@@ -789,7 +1077,10 @@
       "name": "Get Budget Status",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [3080, -160],
+      "position": [
+        3080,
+        -160
+      ],
       "parameters": {
         "resource": "database",
         "operation": "executeQuery",
@@ -797,7 +1088,10 @@
         "options": {}
       },
       "credentials": {
-        "postgres": { "id": "2ceb9b4a66d1d908", "name": "Postgres (bit_by_bit)" }
+        "postgres": {
+          "id": "2ceb9b4a66d1d908",
+          "name": "Postgres (bit_by_bit)"
+        }
       }
     },
     {
@@ -805,7 +1099,10 @@
       "name": "Budget Guard",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [3300, -160],
+      "position": [
+        3300,
+        -160
+      ],
       "parameters": {
         "mode": "runOnceForAllItems",
         "language": "javaScript",
@@ -817,7 +1114,10 @@
       "name": "Route Model Tier",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [3520, -160],
+      "position": [
+        3520,
+        -160
+      ],
       "parameters": {
         "mode": "runOnceForAllItems",
         "language": "javaScript",
@@ -829,7 +1129,10 @@
       "name": "Tier Is Zero?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
-      "position": [3740, -160],
+      "position": [
+        3740,
+        -160
+      ],
       "parameters": {
         "conditions": {
           "combinator": "and",
@@ -837,10 +1140,18 @@
             {
               "leftValue": "={{ $json.tier }}",
               "rightValue": "tier0",
-              "operator": { "type": "string", "operation": "equals" }
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
             }
           ],
-          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 2 }
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          }
         },
         "options": {}
       }
@@ -850,11 +1161,14 @@
       "name": "Format Tier0 Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [3960, -300],
+      "position": [
+        3960,
+        -300
+      ],
       "parameters": {
         "mode": "runOnceForAllItems",
         "language": "javaScript",
-        "jsCode": "const chatId = $('Verify & Normalize').item.json.chat_id;\nconst language = $('Detect Language, Classify, Detect Sensitive Data').item.json.language;\nconst match = $('Pick Best Match').item.json;\nconst budgetState = $('Budget Guard').item.json.budget_state;\nconst parsedIntent = $('Parse Intent').item.json;\n\nlet text, intent;\nif (match.matched) {\n  text = language === 'he'\n    ? `מצאתי את זה: *${match.title}*\\n${match.summary_he}\\n${match.url}`\n    : `Here's what I found: *${match.title}*\\n${match.summary_en}\\n${match.url}`;\n  intent = 'kb_match_' + parsedIntent.intent;\n} else if (budgetState === 'HARD_STOP') {\n  text = language === 'he'\n    ? 'הגעתי למגבלת השימוש היומית שלי. נסה שוב מאוחר יותר.'\n    : \"I've hit today's usage limit. Please try again later.\";\n  intent = 'budget_hard_stop';\n} else {\n  text = language === 'he'\n    ? 'עדיין אין לי משהו ספציפי על זה במאגר הידע שלי.'\n    : \"I don't have anything specific on that yet in my knowledge base.\";\n  intent = 'no_match_' + parsedIntent.intent;\n}\n\n// retrieved_kb_ids/prompt_version_id/cache_hit/cached_input_tokens: part of the common leaf\n// shape all 4 leaves feeding \"Build Conversation Update\" must emit (see the \"why this shape\"\n// note on that node) - Insert interaction_logs (final) reads these only through Build\n// Conversation Update, never directly from Pick Best Match/Get System Prompt, since those\n// aren't valid ancestors on every leaf's path (e.g. a cache-hit item never runs either node).\nconst retrievedKbIds = JSON.stringify(match.matched ? [match.matched_id] : []);\nconst promptVersionId = $('Get System Prompt').item.json.id;\nconst securitySignal = $('Parse Security Signal').item.json;\n\nreturn [{ json: { chat_id: chatId, text, agent_response: text, routed_model: 'none', input_tokens: 0, output_tokens: 0, cost_usd: 0, intent, retrieved_kb_ids: retrievedKbIds, prompt_version_id: promptVersionId, cache_hit: false, cached_input_tokens: null, security_signal: securitySignal.security_signal, security_signal_reasoning: securitySignal.security_signal_reasoning } }];\n"
+        "jsCode": "const chatId = $('Verify & Normalize').item.json.chat_id;\nconst language = $('Detect Language, Classify, Detect Sensitive Data').item.json.language;\nconst match = $('Pick Best Match').item.json;\nconst budgetState = $('Budget Guard').item.json.budget_state;\nconst parsedIntent = $('Parse Intent').item.json;\n\nlet text, intent;\nif (match.matched) {\n  text = language === 'he'\n    ? `\u05de\u05e6\u05d0\u05ea\u05d9 \u05d0\u05ea \u05d6\u05d4: *${match.title}*\\n${match.summary_he}\\n${match.url}`\n    : `Here's what I found: *${match.title}*\\n${match.summary_en}\\n${match.url}`;\n  intent = 'kb_match_' + parsedIntent.intent;\n} else if (budgetState === 'HARD_STOP') {\n  text = language === 'he'\n    ? '\u05d4\u05d2\u05e2\u05ea\u05d9 \u05dc\u05de\u05d2\u05d1\u05dc\u05ea \u05d4\u05e9\u05d9\u05de\u05d5\u05e9 \u05d4\u05d9\u05d5\u05de\u05d9\u05ea \u05e9\u05dc\u05d9. \u05e0\u05e1\u05d4 \u05e9\u05d5\u05d1 \u05de\u05d0\u05d5\u05d7\u05e8 \u05d9\u05d5\u05ea\u05e8.'\n    : \"I've hit today's usage limit. Please try again later.\";\n  intent = 'budget_hard_stop';\n} else {\n  text = language === 'he'\n    ? '\u05e2\u05d3\u05d9\u05d9\u05df \u05d0\u05d9\u05df \u05dc\u05d9 \u05de\u05e9\u05d4\u05d5 \u05e1\u05e4\u05e6\u05d9\u05e4\u05d9 \u05e2\u05dc \u05d6\u05d4 \u05d1\u05de\u05d0\u05d2\u05e8 \u05d4\u05d9\u05d3\u05e2 \u05e9\u05dc\u05d9.'\n    : \"I don't have anything specific on that yet in my knowledge base.\";\n  intent = 'no_match_' + parsedIntent.intent;\n}\n\n// retrieved_kb_ids/prompt_version_id/cache_hit/cached_input_tokens: part of the common leaf\n// shape all 4 leaves feeding \"Build Conversation Update\" must emit (see the \"why this shape\"\n// note on that node) - Insert interaction_logs (final) reads these only through Build\n// Conversation Update, never directly from Pick Best Match/Get System Prompt, since those\n// aren't valid ancestors on every leaf's path (e.g. a cache-hit item never runs either node).\nconst retrievedKbIds = JSON.stringify(match.matched ? [match.matched_id] : []);\nconst promptVersionId = $('Get System Prompt').item.json.id;\nconst securitySignal = $('Parse Security Signal').item.json;\n\nreturn [{ json: { chat_id: chatId, text, agent_response: text, routed_model: 'none', input_tokens: 0, output_tokens: 0, cost_usd: 0, intent, retrieved_kb_ids: retrievedKbIds, prompt_version_id: promptVersionId, cache_hit: false, cached_input_tokens: null, security_signal: securitySignal.security_signal, security_signal_reasoning: securitySignal.security_signal_reasoning } }];\n"
       }
     },
     {
@@ -862,7 +1176,10 @@
       "name": "Prepare Generation Context",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [3960, -60],
+      "position": [
+        3960,
+        -60
+      ],
       "parameters": {
         "mode": "runOnceForAllItems",
         "language": "javaScript",
@@ -874,7 +1191,10 @@
       "name": "Get Model Pricing",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [4180, -60],
+      "position": [
+        4180,
+        -60
+      ],
       "parameters": {
         "resource": "database",
         "operation": "executeQuery",
@@ -882,7 +1202,10 @@
         "options": {}
       },
       "credentials": {
-        "postgres": { "id": "2ceb9b4a66d1d908", "name": "Postgres (bit_by_bit)" }
+        "postgres": {
+          "id": "2ceb9b4a66d1d908",
+          "name": "Postgres (bit_by_bit)"
+        }
       }
     },
     {
@@ -890,7 +1213,10 @@
       "name": "Tier Is One?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
-      "position": [4400, -60],
+      "position": [
+        4400,
+        -60
+      ],
       "parameters": {
         "conditions": {
           "combinator": "and",
@@ -898,10 +1224,18 @@
             {
               "leftValue": "={{ $('Route Model Tier').item.json.tier }}",
               "rightValue": "tier1",
-              "operator": { "type": "string", "operation": "equals" }
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
             }
           ],
-          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 2 }
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          }
         },
         "options": {}
       }
@@ -911,7 +1245,10 @@
       "name": "Call Tier 1 Model",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [4620, -160],
+      "position": [
+        4620,
+        -160
+      ],
       "parameters": {
         "method": "POST",
         "url": "https://api.openai.com/v1/chat/completions",
@@ -924,7 +1261,10 @@
         "options": {}
       },
       "credentials": {
-        "openAiApi": { "id": "53f2686ac5199beb", "name": "OpenAI (bit_by_bit)" }
+        "openAiApi": {
+          "id": "53f2686ac5199beb",
+          "name": "OpenAI (bit_by_bit)"
+        }
       }
     },
     {
@@ -932,11 +1272,14 @@
       "name": "Validate Tier 1 Output",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [4840, -160],
+      "position": [
+        4840,
+        -160
+      ],
       "parameters": {
         "mode": "runOnceForAllItems",
         "language": "javaScript",
-        "jsCode": "const resp = $json;\nconst text = (resp.choices && resp.choices[0] && resp.choices[0].message && resp.choices[0].message.content) || '';\nconst inputTokens = (resp.usage && resp.usage.prompt_tokens) || 0;\nconst outputTokens = (resp.usage && resp.usage.completion_tokens) || 0;\n\nconst pricingRows = $('Get Model Pricing').all().map(i => i.json);\nconst pricing = pricingRows.find(r => r.model_name === 'gpt-5.4-nano') || {};\nconst inputPrice = Number(pricing.input_price_per_1m_tokens) || 0;\nconst outputPrice = Number(pricing.output_price_per_1m_tokens) || 0;\nconst costUsd = (inputTokens / 1e6) * inputPrice + (outputTokens / 1e6) * outputPrice;\n\n// mirrors security/sensitive-data-detection/*.ts - same list as the input-side check in\n// \"Detect Language, Classify, Detect Sensitive Data\" above, copied here for the output side\nconst PATTERNS = [\n  { id: 'openai-api-key', category: 'credential', regex: /\\bsk-\\s?[A-Za-z0-9]{20,}\\b/ },\n  { id: 'aws-access-key-id', category: 'credential', regex: /\\bAKIA[0-9A-Z]{16}\\b/ },\n  { id: 'google-api-key', category: 'credential', regex: /\\bAIza[0-9A-Za-z_-]{35}\\b/ },\n  { id: 'bearer-token', category: 'credential', regex: /\\bBearer\\s+[A-Za-z0-9._-]{20,}\\b/i },\n  { id: 'generic-secret-assignment', category: 'credential', regex: /\\b(api[_-]?key|secret|token|password|passwd|pwd)\\b\\s*[:=]\\s*['\"]?[^\\s'\"]{6,}['\"]?/i },\n  { id: 'private-key-block', category: 'credential', regex: /-----BEGIN\\s+(RSA|EC|OPENSSH|DSA)?\\s*PRIVATE KEY-----/ },\n  { id: 'email-address', category: 'personal_identifier', regex: /\\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}\\b/ },\n  { id: 'credit-card-like-number', category: 'personal_identifier', regex: /\\b(?:\\d[ -]?){13,19}\\b/ },\n  { id: 'private-ipv4', category: 'internal_network', regex: /\\b(?:10\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}|172\\.(?:1[6-9]|2\\d|3[01])\\.\\d{1,3}\\.\\d{1,3}|192\\.168\\.\\d{1,3}\\.\\d{1,3})\\b/ },\n];\nlet flagged = false;\nfor (const p of PATTERNS) { if (p.regex.test(text)) { flagged = true; break; } }\n\nconst language = $('Detect Language, Classify, Detect Sensitive Data').item.json.language;\nconst chatId = $('Verify & Normalize').item.json.chat_id;\nconst parsedIntent = $('Parse Intent').item.json;\n\nlet finalText = text, intent = 'generated_tier1_' + parsedIntent.intent;\nif (!text || flagged) {\n  intent = flagged ? 'output_blocked_sensitive_data' : 'generation_empty';\n  finalText = language === 'he'\n    ? 'מצטער, לא הצלחתי לייצר תשובה בטוחה כרגע. נסה לנסח את השאלה מחדש.'\n    : \"Sorry, I couldn't generate a safe response right now. Try rephrasing your question.\";\n}\n\n// see the matching comment in \"Format Tier0 Response\" for why these four fields are computed\n// here rather than referenced later from Pick Best Match/Get System Prompt directly\nconst retrievedKbIds = JSON.stringify($('Pick Best Match').item.json.matched ? [$('Pick Best Match').item.json.matched_id] : []);\nconst promptVersionId = $('Get System Prompt').item.json.id;\nconst securitySignal = $('Parse Security Signal').item.json;\n\nreturn [{ json: { chat_id: chatId, text: finalText, agent_response: finalText, routed_model: 'gpt-5.4-nano', input_tokens: inputTokens, output_tokens: outputTokens, cost_usd: costUsd, intent, retrieved_kb_ids: retrievedKbIds, prompt_version_id: promptVersionId, cache_hit: false, cached_input_tokens: null, security_signal: securitySignal.security_signal, security_signal_reasoning: securitySignal.security_signal_reasoning } }];\n"
+        "jsCode": "const resp = $json;\nconst text = (resp.choices && resp.choices[0] && resp.choices[0].message && resp.choices[0].message.content) || '';\nconst inputTokens = (resp.usage && resp.usage.prompt_tokens) || 0;\nconst outputTokens = (resp.usage && resp.usage.completion_tokens) || 0;\n\nconst pricingRows = $('Get Model Pricing').all().map(i => i.json);\nconst pricing = pricingRows.find(r => r.model_name === 'gpt-5.4-nano') || {};\nconst inputPrice = Number(pricing.input_price_per_1m_tokens) || 0;\nconst outputPrice = Number(pricing.output_price_per_1m_tokens) || 0;\nconst costUsd = (inputTokens / 1e6) * inputPrice + (outputTokens / 1e6) * outputPrice;\n\n// mirrors security/sensitive-data-detection/*.ts - same list as the input-side check in\n// \"Detect Language, Classify, Detect Sensitive Data\" above, copied here for the output side\nconst PATTERNS = [\n  { id: 'openai-api-key', category: 'credential', regex: /\\bsk-\\s?[A-Za-z0-9]{20,}\\b/ },\n  { id: 'aws-access-key-id', category: 'credential', regex: /\\bAKIA[0-9A-Z]{16}\\b/ },\n  { id: 'google-api-key', category: 'credential', regex: /\\bAIza[0-9A-Za-z_-]{35}\\b/ },\n  { id: 'bearer-token', category: 'credential', regex: /\\bBearer\\s+[A-Za-z0-9._-]{20,}\\b/i },\n  { id: 'generic-secret-assignment', category: 'credential', regex: /\\b(api[_-]?key|secret|token|password|passwd|pwd)\\b\\s*[:=]\\s*['\"]?[^\\s'\"]{6,}['\"]?/i },\n  { id: 'private-key-block', category: 'credential', regex: /-----BEGIN\\s+(RSA|EC|OPENSSH|DSA)?\\s*PRIVATE KEY-----/ },\n  { id: 'email-address', category: 'personal_identifier', regex: /\\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}\\b/ },\n  { id: 'credit-card-like-number', category: 'personal_identifier', regex: /\\b(?:\\d[ -]?){13,19}\\b/ },\n  { id: 'private-ipv4', category: 'internal_network', regex: /\\b(?:10\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}|172\\.(?:1[6-9]|2\\d|3[01])\\.\\d{1,3}\\.\\d{1,3}|192\\.168\\.\\d{1,3}\\.\\d{1,3})\\b/ },\n];\nlet flagged = false;\nfor (const p of PATTERNS) { if (p.regex.test(text)) { flagged = true; break; } }\n\nconst language = $('Detect Language, Classify, Detect Sensitive Data').item.json.language;\nconst chatId = $('Verify & Normalize').item.json.chat_id;\nconst parsedIntent = $('Parse Intent').item.json;\n\nlet finalText = text, intent = 'generated_tier1_' + parsedIntent.intent;\nif (!text || flagged) {\n  intent = flagged ? 'output_blocked_sensitive_data' : 'generation_empty';\n  finalText = language === 'he'\n    ? '\u05de\u05e6\u05d8\u05e2\u05e8, \u05dc\u05d0 \u05d4\u05e6\u05dc\u05d7\u05ea\u05d9 \u05dc\u05d9\u05d9\u05e6\u05e8 \u05ea\u05e9\u05d5\u05d1\u05d4 \u05d1\u05d8\u05d5\u05d7\u05d4 \u05db\u05e8\u05d2\u05e2. \u05e0\u05e1\u05d4 \u05dc\u05e0\u05e1\u05d7 \u05d0\u05ea \u05d4\u05e9\u05d0\u05dc\u05d4 \u05de\u05d7\u05d3\u05e9.'\n    : \"Sorry, I couldn't generate a safe response right now. Try rephrasing your question.\";\n}\n\n// see the matching comment in \"Format Tier0 Response\" for why these four fields are computed\n// here rather than referenced later from Pick Best Match/Get System Prompt directly\nconst retrievedKbIds = JSON.stringify($('Pick Best Match').item.json.matched ? [$('Pick Best Match').item.json.matched_id] : []);\nconst promptVersionId = $('Get System Prompt').item.json.id;\nconst securitySignal = $('Parse Security Signal').item.json;\n\nreturn [{ json: { chat_id: chatId, text: finalText, agent_response: finalText, routed_model: 'gpt-5.4-nano', input_tokens: inputTokens, output_tokens: outputTokens, cost_usd: costUsd, intent, retrieved_kb_ids: retrievedKbIds, prompt_version_id: promptVersionId, cache_hit: false, cached_input_tokens: null, security_signal: securitySignal.security_signal, security_signal_reasoning: securitySignal.security_signal_reasoning } }];\n"
       }
     },
     {
@@ -944,7 +1287,10 @@
       "name": "Call Tier 2 Model",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [4620, 40],
+      "position": [
+        4620,
+        40
+      ],
       "parameters": {
         "method": "POST",
         "url": "https://api.anthropic.com/v1/messages",
@@ -958,13 +1304,19 @@
         "specifyHeaders": "keypair",
         "headerParameters": {
           "parameters": [
-            { "name": "anthropic-version", "value": "2023-06-01" }
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            }
           ]
         },
         "options": {}
       },
       "credentials": {
-        "anthropicApi": { "id": "a7d4f9c2e13b5680", "name": "Anthropic (bit_by_bit)" }
+        "anthropicApi": {
+          "id": "a7d4f9c2e13b5680",
+          "name": "Anthropic (bit_by_bit)"
+        }
       }
     },
     {
@@ -972,11 +1324,14 @@
       "name": "Validate Tier 2 Output",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [4840, 40],
+      "position": [
+        4840,
+        40
+      ],
       "parameters": {
         "mode": "runOnceForAllItems",
         "language": "javaScript",
-        "jsCode": "const resp = $json;\n// claude-sonnet-5 returns extended-thinking content by default: content[0] is a 'thinking'\n// block (no .text field), the actual answer is the first 'text'-type block, not always at\n// a fixed index - find it explicitly rather than assuming content[0].\nconst textBlock = (resp.content || []).find(b => b.type === 'text');\nconst text = (textBlock && textBlock.text) || '';\nconst inputTokens = (resp.usage && resp.usage.input_tokens) || 0;\nconst outputTokens = (resp.usage && resp.usage.output_tokens) || 0;\n\nconst pricingRows = $('Get Model Pricing').all().map(i => i.json);\nconst pricing = pricingRows.find(r => r.model_name === 'claude-sonnet-5') || {};\nconst inputPrice = Number(pricing.input_price_per_1m_tokens) || 0;\nconst outputPrice = Number(pricing.output_price_per_1m_tokens) || 0;\nconst costUsd = (inputTokens / 1e6) * inputPrice + (outputTokens / 1e6) * outputPrice;\n\n// mirrors security/sensitive-data-detection/*.ts - same list as the input-side check in\n// \"Detect Language, Classify, Detect Sensitive Data\" above, copied here for the output side\nconst PATTERNS = [\n  { id: 'openai-api-key', category: 'credential', regex: /\\bsk-\\s?[A-Za-z0-9]{20,}\\b/ },\n  { id: 'aws-access-key-id', category: 'credential', regex: /\\bAKIA[0-9A-Z]{16}\\b/ },\n  { id: 'google-api-key', category: 'credential', regex: /\\bAIza[0-9A-Za-z_-]{35}\\b/ },\n  { id: 'bearer-token', category: 'credential', regex: /\\bBearer\\s+[A-Za-z0-9._-]{20,}\\b/i },\n  { id: 'generic-secret-assignment', category: 'credential', regex: /\\b(api[_-]?key|secret|token|password|passwd|pwd)\\b\\s*[:=]\\s*['\"]?[^\\s'\"]{6,}['\"]?/i },\n  { id: 'private-key-block', category: 'credential', regex: /-----BEGIN\\s+(RSA|EC|OPENSSH|DSA)?\\s*PRIVATE KEY-----/ },\n  { id: 'email-address', category: 'personal_identifier', regex: /\\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}\\b/ },\n  { id: 'credit-card-like-number', category: 'personal_identifier', regex: /\\b(?:\\d[ -]?){13,19}\\b/ },\n  { id: 'private-ipv4', category: 'internal_network', regex: /\\b(?:10\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}|172\\.(?:1[6-9]|2\\d|3[01])\\.\\d{1,3}\\.\\d{1,3}|192\\.168\\.\\d{1,3}\\.\\d{1,3})\\b/ },\n];\nlet flagged = false;\nfor (const p of PATTERNS) { if (p.regex.test(text)) { flagged = true; break; } }\n\nconst language = $('Detect Language, Classify, Detect Sensitive Data').item.json.language;\nconst chatId = $('Verify & Normalize').item.json.chat_id;\nconst parsedIntent = $('Parse Intent').item.json;\n\nlet finalText = text, intent = 'generated_tier2_' + parsedIntent.intent;\nif (!text || flagged) {\n  intent = flagged ? 'output_blocked_sensitive_data' : 'generation_empty';\n  finalText = language === 'he'\n    ? 'מצטער, לא הצלחתי לייצר תשובה בטוחה כרגע. נסה לנסח את השאלה מחדש.'\n    : \"Sorry, I couldn't generate a safe response right now. Try rephrasing your question.\";\n}\n\n// see the matching comment in \"Format Tier0 Response\" for why these four fields are computed\n// here rather than referenced later from Pick Best Match/Get System Prompt directly\nconst retrievedKbIds = JSON.stringify($('Pick Best Match').item.json.matched ? [$('Pick Best Match').item.json.matched_id] : []);\nconst promptVersionId = $('Get System Prompt').item.json.id;\nconst securitySignal = $('Parse Security Signal').item.json;\n\nreturn [{ json: { chat_id: chatId, text: finalText, agent_response: finalText, routed_model: 'claude-sonnet-5', input_tokens: inputTokens, output_tokens: outputTokens, cost_usd: costUsd, intent, retrieved_kb_ids: retrievedKbIds, prompt_version_id: promptVersionId, cache_hit: false, cached_input_tokens: null, security_signal: securitySignal.security_signal, security_signal_reasoning: securitySignal.security_signal_reasoning } }];\n"
+        "jsCode": "const resp = $json;\n// claude-sonnet-5 returns extended-thinking content by default: content[0] is a 'thinking'\n// block (no .text field), the actual answer is the first 'text'-type block, not always at\n// a fixed index - find it explicitly rather than assuming content[0].\nconst textBlock = (resp.content || []).find(b => b.type === 'text');\nconst text = (textBlock && textBlock.text) || '';\nconst inputTokens = (resp.usage && resp.usage.input_tokens) || 0;\nconst outputTokens = (resp.usage && resp.usage.output_tokens) || 0;\n\nconst pricingRows = $('Get Model Pricing').all().map(i => i.json);\nconst pricing = pricingRows.find(r => r.model_name === 'claude-sonnet-5') || {};\nconst inputPrice = Number(pricing.input_price_per_1m_tokens) || 0;\nconst outputPrice = Number(pricing.output_price_per_1m_tokens) || 0;\nconst costUsd = (inputTokens / 1e6) * inputPrice + (outputTokens / 1e6) * outputPrice;\n\n// mirrors security/sensitive-data-detection/*.ts - same list as the input-side check in\n// \"Detect Language, Classify, Detect Sensitive Data\" above, copied here for the output side\nconst PATTERNS = [\n  { id: 'openai-api-key', category: 'credential', regex: /\\bsk-\\s?[A-Za-z0-9]{20,}\\b/ },\n  { id: 'aws-access-key-id', category: 'credential', regex: /\\bAKIA[0-9A-Z]{16}\\b/ },\n  { id: 'google-api-key', category: 'credential', regex: /\\bAIza[0-9A-Za-z_-]{35}\\b/ },\n  { id: 'bearer-token', category: 'credential', regex: /\\bBearer\\s+[A-Za-z0-9._-]{20,}\\b/i },\n  { id: 'generic-secret-assignment', category: 'credential', regex: /\\b(api[_-]?key|secret|token|password|passwd|pwd)\\b\\s*[:=]\\s*['\"]?[^\\s'\"]{6,}['\"]?/i },\n  { id: 'private-key-block', category: 'credential', regex: /-----BEGIN\\s+(RSA|EC|OPENSSH|DSA)?\\s*PRIVATE KEY-----/ },\n  { id: 'email-address', category: 'personal_identifier', regex: /\\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}\\b/ },\n  { id: 'credit-card-like-number', category: 'personal_identifier', regex: /\\b(?:\\d[ -]?){13,19}\\b/ },\n  { id: 'private-ipv4', category: 'internal_network', regex: /\\b(?:10\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}|172\\.(?:1[6-9]|2\\d|3[01])\\.\\d{1,3}\\.\\d{1,3}|192\\.168\\.\\d{1,3}\\.\\d{1,3})\\b/ },\n];\nlet flagged = false;\nfor (const p of PATTERNS) { if (p.regex.test(text)) { flagged = true; break; } }\n\nconst language = $('Detect Language, Classify, Detect Sensitive Data').item.json.language;\nconst chatId = $('Verify & Normalize').item.json.chat_id;\nconst parsedIntent = $('Parse Intent').item.json;\n\nlet finalText = text, intent = 'generated_tier2_' + parsedIntent.intent;\nif (!text || flagged) {\n  intent = flagged ? 'output_blocked_sensitive_data' : 'generation_empty';\n  finalText = language === 'he'\n    ? '\u05de\u05e6\u05d8\u05e2\u05e8, \u05dc\u05d0 \u05d4\u05e6\u05dc\u05d7\u05ea\u05d9 \u05dc\u05d9\u05d9\u05e6\u05e8 \u05ea\u05e9\u05d5\u05d1\u05d4 \u05d1\u05d8\u05d5\u05d7\u05d4 \u05db\u05e8\u05d2\u05e2. \u05e0\u05e1\u05d4 \u05dc\u05e0\u05e1\u05d7 \u05d0\u05ea \u05d4\u05e9\u05d0\u05dc\u05d4 \u05de\u05d7\u05d3\u05e9.'\n    : \"Sorry, I couldn't generate a safe response right now. Try rephrasing your question.\";\n}\n\n// see the matching comment in \"Format Tier0 Response\" for why these four fields are computed\n// here rather than referenced later from Pick Best Match/Get System Prompt directly\nconst retrievedKbIds = JSON.stringify($('Pick Best Match').item.json.matched ? [$('Pick Best Match').item.json.matched_id] : []);\nconst promptVersionId = $('Get System Prompt').item.json.id;\nconst securitySignal = $('Parse Security Signal').item.json;\n\nreturn [{ json: { chat_id: chatId, text: finalText, agent_response: finalText, routed_model: 'claude-sonnet-5', input_tokens: inputTokens, output_tokens: outputTokens, cost_usd: costUsd, intent, retrieved_kb_ids: retrievedKbIds, prompt_version_id: promptVersionId, cache_hit: false, cached_input_tokens: null, security_signal: securitySignal.security_signal, security_signal_reasoning: securitySignal.security_signal_reasoning } }];\n"
       }
     },
     {
@@ -984,7 +1339,10 @@
       "name": "Build Conversation Update",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [5060, -160],
+      "position": [
+        5060,
+        -160
+      ],
       "parameters": {
         "mode": "runOnceForAllItems",
         "language": "javaScript",
@@ -996,7 +1354,10 @@
       "name": "Determine Should Cache",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [5200, -160],
+      "position": [
+        5200,
+        -160
+      ],
       "parameters": {
         "mode": "runOnceForAllItems",
         "language": "javaScript",
@@ -1008,7 +1369,10 @@
       "name": "Should Cache?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
-      "position": [5320, -160],
+      "position": [
+        5320,
+        -160
+      ],
       "parameters": {
         "conditions": {
           "combinator": "and",
@@ -1016,10 +1380,18 @@
             {
               "leftValue": "={{ $json.should_cache }}",
               "rightValue": true,
-              "operator": { "type": "boolean", "operation": "equals" }
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
             }
           ],
-          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 2 }
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          }
         },
         "options": {}
       }
@@ -1029,7 +1401,10 @@
       "name": "Save To Cache",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [5440, -280],
+      "position": [
+        5440,
+        -280
+      ],
       "parameters": {
         "resource": "database",
         "operation": "executeQuery",
@@ -1039,7 +1414,10 @@
         }
       },
       "credentials": {
-        "postgres": { "id": "2ceb9b4a66d1d908", "name": "Postgres (bit_by_bit)" }
+        "postgres": {
+          "id": "2ceb9b4a66d1d908",
+          "name": "Postgres (bit_by_bit)"
+        }
       }
     },
     {
@@ -1047,7 +1425,10 @@
       "name": "Insert interaction_logs (final)",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [5280, -160],
+      "position": [
+        5280,
+        -160
+      ],
       "parameters": {
         "resource": "database",
         "operation": "executeQuery",
@@ -1057,7 +1438,10 @@
         }
       },
       "credentials": {
-        "postgres": { "id": "2ceb9b4a66d1d908", "name": "Postgres (bit_by_bit)" }
+        "postgres": {
+          "id": "2ceb9b4a66d1d908",
+          "name": "Postgres (bit_by_bit)"
+        }
       }
     },
     {
@@ -1065,7 +1449,10 @@
       "name": "Save Conversation Turn",
       "type": "n8n-nodes-base.redis",
       "typeVersion": 1,
-      "position": [5500, -160],
+      "position": [
+        5500,
+        -160
+      ],
       "parameters": {
         "operation": "set",
         "key": "={{ $('Build Conversation Update').item.json.conv_key }}",
@@ -1076,7 +1463,10 @@
         "options": {}
       },
       "credentials": {
-        "redis": { "id": "c4e8b2a951f7d360", "name": "Redis (bit_by_bit)" }
+        "redis": {
+          "id": "c4e8b2a951f7d360",
+          "name": "Redis (bit_by_bit)"
+        }
       }
     },
     {
@@ -1084,7 +1474,10 @@
       "name": "Prepare Telegram Send",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [5720, -160],
+      "position": [
+        5720,
+        -160
+      ],
       "parameters": {
         "mode": "runOnceForAllItems",
         "language": "javaScript",
@@ -1096,7 +1489,10 @@
       "name": "Send Telegram Message",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
-      "position": [5940, -160],
+      "position": [
+        5940,
+        -160
+      ],
       "parameters": {
         "resource": "message",
         "operation": "sendMessage",
@@ -1105,7 +1501,10 @@
         "additionalFields": {}
       },
       "credentials": {
-        "telegramApi": { "id": "895b9583b757539f", "name": "Telegram Bot (bit_by_bit)" }
+        "telegramApi": {
+          "id": "895b9583b757539f",
+          "name": "Telegram Bot (bit_by_bit)"
+        }
       }
     },
     {
@@ -1113,7 +1512,10 @@
       "name": "Update interaction_logs (message_id)",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [6050, -160],
+      "position": [
+        6050,
+        -160
+      ],
       "onError": "continueRegularOutput",
       "parameters": {
         "resource": "database",
@@ -1124,7 +1526,10 @@
         }
       },
       "credentials": {
-        "postgres": { "id": "2ceb9b4a66d1d908", "name": "Postgres (bit_by_bit)" }
+        "postgres": {
+          "id": "2ceb9b4a66d1d908",
+          "name": "Postgres (bit_by_bit)"
+        }
       }
     },
     {
@@ -1132,11 +1537,16 @@
       "name": "Respond Success",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.4,
-      "position": [6160, -160],
+      "position": [
+        6160,
+        -160
+      ],
       "parameters": {
         "respondWith": "text",
         "responseBody": "OK",
-        "options": { "responseCode": 200 }
+        "options": {
+          "responseCode": 200
+        }
       }
     },
     {
@@ -1144,7 +1554,10 @@
       "name": "Insert interaction_logs (classification blocked)",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [1760, 80],
+      "position": [
+        1760,
+        80
+      ],
       "parameters": {
         "resource": "database",
         "operation": "executeQuery",
@@ -1154,7 +1567,10 @@
         }
       },
       "credentials": {
-        "postgres": { "id": "2ceb9b4a66d1d908", "name": "Postgres (bit_by_bit)" }
+        "postgres": {
+          "id": "2ceb9b4a66d1d908",
+          "name": "Postgres (bit_by_bit)"
+        }
       }
     },
     {
@@ -1162,7 +1578,10 @@
       "name": "Send Classification Refusal",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
-      "position": [1980, 80],
+      "position": [
+        1980,
+        80
+      ],
       "parameters": {
         "resource": "message",
         "operation": "sendMessage",
@@ -1171,7 +1590,10 @@
         "additionalFields": {}
       },
       "credentials": {
-        "telegramApi": { "id": "895b9583b757539f", "name": "Telegram Bot (bit_by_bit)" }
+        "telegramApi": {
+          "id": "895b9583b757539f",
+          "name": "Telegram Bot (bit_by_bit)"
+        }
       }
     },
     {
@@ -1179,11 +1601,16 @@
       "name": "Respond Classification Blocked",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.4,
-      "position": [2200, 80],
+      "position": [
+        2200,
+        80
+      ],
       "parameters": {
         "respondWith": "text",
         "responseBody": "blocked",
-        "options": { "responseCode": 200 }
+        "options": {
+          "responseCode": 200
+        }
       }
     },
     {
@@ -1191,11 +1618,16 @@
       "name": "Respond Duplicate",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.4,
-      "position": [1100, 40],
+      "position": [
+        1100,
+        40
+      ],
       "parameters": {
         "respondWith": "text",
         "responseBody": "duplicate",
-        "options": { "responseCode": 200 }
+        "options": {
+          "responseCode": 200
+        }
       }
     },
     {
@@ -1203,255 +1635,2522 @@
       "name": "Respond 401",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.4,
-      "position": [660, 160],
+      "position": [
+        660,
+        160
+      ],
       "parameters": {
         "respondWith": "text",
         "responseBody": "unauthorized",
-        "options": { "responseCode": 401 }
+        "options": {
+          "responseCode": 401
+        }
+      }
+    },
+    {
+      "id": "if-is-admin-command-1",
+      "name": "Is Admin Command?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1220,
+        -60
+      ],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $('Verify & Normalize').item.json.chat_id }}",
+              "rightValue": "={{ $env.ADMIN_TELEGRAM_CHAT_ID }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "leftValue": "={{ $('Verify & Normalize').item.json.text }}",
+              "rightValue": "/^\\/(pending|prompts|approve\\s+\\S+|reject\\s+\\S+|rollback|confirm\\s+(approve\\s+\\S+|rollback))$/i",
+              "operator": {
+                "type": "string",
+                "operation": "regex"
+              }
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          }
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "code-parse-admin-command-1",
+      "name": "Parse Admin Command",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1340,
+        -120
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const text = ($('Verify & Normalize').item.json.text || '').trim();\nlet command = null;\nlet proposal_id = null;\n\nlet m;\nif ((m = text.match(/^\\/approve\\s+(\\S+)$/i))) { command = 'approve'; proposal_id = m[1]; }\nelse if ((m = text.match(/^\\/reject\\s+(\\S+)$/i))) { command = 'reject'; proposal_id = m[1]; }\nelse if ((m = text.match(/^\\/confirm\\s+approve\\s+(\\S+)$/i))) { command = 'confirm_approve'; proposal_id = m[1]; }\nelse if (/^\\/confirm\\s+rollback$/i.test(text)) { command = 'confirm_rollback'; }\nelse if (/^\\/rollback$/i.test(text)) { command = 'rollback'; }\nelse if (/^\\/pending$/i.test(text)) { command = 'pending'; }\nelse if (/^\\/prompts$/i.test(text)) { command = 'prompts'; }\n\nreturn [{ json: { command, proposal_id } }];"
+      }
+    },
+    {
+      "id": "if-is-pending-1",
+      "name": "Is Pending?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1460,
+        -300
+      ],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.command }}",
+              "rightValue": "pending",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          }
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "if-is-prompts-1",
+      "name": "Is Prompts?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1580,
+        -180
+      ],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.command }}",
+              "rightValue": "prompts",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          }
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "if-is-approve-1",
+      "name": "Is Approve?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1700,
+        -60
+      ],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.command }}",
+              "rightValue": "approve",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          }
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "if-is-reject-1",
+      "name": "Is Reject?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1820,
+        60
+      ],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.command }}",
+              "rightValue": "reject",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          }
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "if-is-rollback-1",
+      "name": "Is Rollback?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1940,
+        180
+      ],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.command }}",
+              "rightValue": "rollback",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          }
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "if-is-confirm-approve-1",
+      "name": "Is Confirm Approve?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2060,
+        300
+      ],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.command }}",
+              "rightValue": "confirm_approve",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          }
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "pg-list-pending-1",
+      "name": "List Pending Proposals",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1580,
+        -360
+      ],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "SELECT p.id, p.evaluation_score, p.rationale, p.created_at\nFROM (SELECT 1) AS dummy\nLEFT JOIN LATERAL (\n  SELECT id, evaluation_score, rationale, created_at FROM prompt_change_proposals WHERE status = 'pending' ORDER BY created_at\n) p ON true;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "2ceb9b4a66d1d908",
+          "name": "Postgres (bit_by_bit)"
+        }
+      }
+    },
+    {
+      "id": "code-format-pending-1",
+      "name": "Format Pending List",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1700,
+        -360
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const rows = $input.all().map(i => i.json).filter(r => r.id);\nlet text;\nif (rows.length === 0) {\n  text = 'No pending proposals.';\n} else {\n  const lines = rows.map(r => {\n    const scorePct = r.evaluation_score !== null ? Math.round(Number(r.evaluation_score) * 100) + '%' : 'n/a';\n    const firstLine = (r.rationale || '').split('\\n')[0];\n    return 'id: ' + r.id + '\\nscore: ' + scorePct + '\\n' + firstLine + '\\ncreated: ' + r.created_at;\n  });\n  text = 'Pending proposals (' + rows.length + '):\\n\\n' + lines.join('\\n\\n');\n}\nreturn [{ json: { text } }];"
+      }
+    },
+    {
+      "id": "telegram-send-pending-1",
+      "name": "Send Pending List",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1820,
+        -360
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "={{ $('Verify & Normalize').item.json.chat_id }}",
+        "text": "={{ $json.text }}",
+        "additionalFields": {}
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "895b9583b757539f",
+          "name": "Telegram Bot (bit_by_bit)"
+        }
+      }
+    },
+    {
+      "id": "respond-admin-pending-1",
+      "name": "Respond Admin Pending",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        1940,
+        -360
+      ],
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "admin_pending_listed",
+        "options": {
+          "responseCode": 200
+        }
+      }
+    },
+    {
+      "id": "pg-list-prompts-1",
+      "name": "List Base Prompts",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1700,
+        -180
+      ],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "SELECT version_tag, is_active, created_at FROM system_prompts WHERE prompt_type = 'base' ORDER BY created_at DESC LIMIT 10;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "2ceb9b4a66d1d908",
+          "name": "Postgres (bit_by_bit)"
+        }
+      }
+    },
+    {
+      "id": "code-format-prompts-1",
+      "name": "Format Prompts List",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1820,
+        -180
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const rows = $input.all().map(i => i.json);\nconst lines = rows.map(r => (r.is_active ? '* ' : '  ') + r.version_tag + '  ' + r.created_at);\nconst text = 'Base prompt versions (* = active):\\n\\n' + lines.join('\\n');\nreturn [{ json: { text } }];"
+      }
+    },
+    {
+      "id": "telegram-send-prompts-1",
+      "name": "Send Prompts List",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1940,
+        -180
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "={{ $('Verify & Normalize').item.json.chat_id }}",
+        "text": "={{ $json.text }}",
+        "additionalFields": {}
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "895b9583b757539f",
+          "name": "Telegram Bot (bit_by_bit)"
+        }
+      }
+    },
+    {
+      "id": "respond-admin-prompts-1",
+      "name": "Respond Admin Prompts",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        2060,
+        -180
+      ],
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "admin_prompts_listed",
+        "options": {
+          "responseCode": 200
+        }
+      }
+    },
+    {
+      "id": "pg-get-proposal-for-approve-1",
+      "name": "Get Proposal For Approve",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1820,
+        -60
+      ],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "SELECT p.id, p.evaluation_score, p.status\nFROM (SELECT 1) AS dummy\nLEFT JOIN LATERAL (\n  SELECT id, evaluation_score, status FROM prompt_change_proposals WHERE id::text = $1\n) p ON true\nLIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $('Parse Admin Command').item.json.proposal_id ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "2ceb9b4a66d1d908",
+          "name": "Postgres (bit_by_bit)"
+        }
+      }
+    },
+    {
+      "id": "if-proposal-pending-for-approve-1",
+      "name": "Proposal Is Pending?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1940,
+        -60
+      ],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.status }}",
+              "rightValue": "pending",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          }
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "telegram-send-approve-confirm-1",
+      "name": "Send Approve Confirmation Prompt",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2060,
+        -100
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "={{ $('Verify & Normalize').item.json.chat_id }}",
+        "text": "={{ \"This will activate proposal \" + $json.id + \" (score \" + Math.round(Number($json.evaluation_score) * 100) + \"%) as the new Base Prompt.\\nReply with /confirm approve \" + $json.id + \" to proceed.\" }}",
+        "additionalFields": {}
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "895b9583b757539f",
+          "name": "Telegram Bot (bit_by_bit)"
+        }
+      }
+    },
+    {
+      "id": "respond-admin-approve-prompt-1",
+      "name": "Respond Admin Approve Prompt",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        2180,
+        -100
+      ],
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "admin_approve_confirmation_prompt",
+        "options": {
+          "responseCode": 200
+        }
+      }
+    },
+    {
+      "id": "telegram-send-approve-not-found-1",
+      "name": "Send Approve Not Found",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2060,
+        -20
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "={{ $('Verify & Normalize').item.json.chat_id }}",
+        "text": "={{ $json.status === 'approved' ? \"This proposal was already approved.\" : $json.status === 'rejected' ? \"This proposal was already rejected.\" : \"No pending proposal found with that id. Use /pending to see current ones.\" }}",
+        "additionalFields": {}
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "895b9583b757539f",
+          "name": "Telegram Bot (bit_by_bit)"
+        }
+      }
+    },
+    {
+      "id": "respond-admin-approve-not-found-1",
+      "name": "Respond Admin Approve Not Found",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        2180,
+        -20
+      ],
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "admin_approve_not_found",
+        "options": {
+          "responseCode": 200
+        }
+      }
+    },
+    {
+      "id": "pg-reject-proposal-1",
+      "name": "Reject Proposal",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1940,
+        60
+      ],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "WITH updated AS (\n  UPDATE prompt_change_proposals SET status = 'rejected', approved_by = $1 WHERE id::text = $2 AND status = 'pending' RETURNING id\n)\nSELECT u.id\nFROM (SELECT 1) AS dummy\nLEFT JOIN updated u ON true\nLIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $('Verify & Normalize').item.json.platform_user_id, $('Parse Admin Command').item.json.proposal_id ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "2ceb9b4a66d1d908",
+          "name": "Postgres (bit_by_bit)"
+        }
+      }
+    },
+    {
+      "id": "if-reject-succeeded-1",
+      "name": "Reject Succeeded?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2060,
+        60
+      ],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          }
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "telegram-send-reject-confirm-1",
+      "name": "Send Reject Confirmation",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2180,
+        20
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "={{ $('Verify & Normalize').item.json.chat_id }}",
+        "text": "={{ \"Proposal \" + $json.id + \" rejected.\" }}",
+        "additionalFields": {}
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "895b9583b757539f",
+          "name": "Telegram Bot (bit_by_bit)"
+        }
+      }
+    },
+    {
+      "id": "respond-admin-reject-confirm-1",
+      "name": "Respond Admin Reject Confirm",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        2300,
+        20
+      ],
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "admin_proposal_rejected",
+        "options": {
+          "responseCode": 200
+        }
+      }
+    },
+    {
+      "id": "telegram-send-reject-not-found-1",
+      "name": "Send Reject Not Found",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2180,
+        100
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "={{ $('Verify & Normalize').item.json.chat_id }}",
+        "text": "={{ \"No pending proposal found with that id. Use /pending to see current ones.\" }}",
+        "additionalFields": {}
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "895b9583b757539f",
+          "name": "Telegram Bot (bit_by_bit)"
+        }
+      }
+    },
+    {
+      "id": "respond-admin-reject-not-found-1",
+      "name": "Respond Admin Reject Not Found",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        2300,
+        100
+      ],
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "admin_reject_not_found",
+        "options": {
+          "responseCode": 200
+        }
+      }
+    },
+    {
+      "id": "pg-find-rollback-target-1",
+      "name": "Find Rollback Target",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2060,
+        180
+      ],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "SELECT t.id, t.version_tag\nFROM (SELECT 1) AS dummy\nLEFT JOIN LATERAL (\n  SELECT id, version_tag FROM system_prompts WHERE prompt_type = 'base' AND is_active = false ORDER BY created_at DESC LIMIT 1\n) t ON true\nLIMIT 1;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "2ceb9b4a66d1d908",
+          "name": "Postgres (bit_by_bit)"
+        }
+      }
+    },
+    {
+      "id": "if-rollback-target-found-1",
+      "name": "Rollback Target Found?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2180,
+        180
+      ],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          }
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "telegram-send-rollback-confirm-1",
+      "name": "Send Rollback Confirmation Prompt",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2300,
+        140
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "={{ $('Verify & Normalize').item.json.chat_id }}",
+        "text": "={{ \"This will reactivate \" + $json.version_tag + \", replacing the current active prompt.\\nReply with /confirm rollback to proceed.\" }}",
+        "additionalFields": {}
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "895b9583b757539f",
+          "name": "Telegram Bot (bit_by_bit)"
+        }
+      }
+    },
+    {
+      "id": "respond-admin-rollback-prompt-1",
+      "name": "Respond Admin Rollback Prompt",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        2420,
+        140
+      ],
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "admin_rollback_confirmation_prompt",
+        "options": {
+          "responseCode": 200
+        }
+      }
+    },
+    {
+      "id": "telegram-send-rollback-none-1",
+      "name": "Send Rollback None",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2300,
+        220
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "={{ $('Verify & Normalize').item.json.chat_id }}",
+        "text": "={{ \"Nothing to roll back to - only one Base Prompt version has ever existed.\" }}",
+        "additionalFields": {}
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "895b9583b757539f",
+          "name": "Telegram Bot (bit_by_bit)"
+        }
+      }
+    },
+    {
+      "id": "respond-admin-rollback-none-1",
+      "name": "Respond Admin Rollback None",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        2420,
+        220
+      ],
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "admin_rollback_none",
+        "options": {
+          "responseCode": 200
+        }
+      }
+    },
+    {
+      "id": "pg-get-proposal-for-confirm-approve-1",
+      "name": "Get Proposal For Confirm Approve",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2180,
+        300
+      ],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "SELECT p.id, p.status, p.proposed_prompt\nFROM (SELECT 1) AS dummy\nLEFT JOIN LATERAL (\n  SELECT id, status, proposed_prompt FROM prompt_change_proposals WHERE id::text = $1\n) p ON true\nLIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $('Parse Admin Command').item.json.proposal_id ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "2ceb9b4a66d1d908",
+          "name": "Postgres (bit_by_bit)"
+        }
+      }
+    },
+    {
+      "id": "if-proposal-still-pending-1",
+      "name": "Proposal Still Pending?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2300,
+        300
+      ],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.status }}",
+              "rightValue": "pending",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          }
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "pg-deactivate-base-prompt-1",
+      "name": "Deactivate Current Base Prompt",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2420,
+        260
+      ],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "UPDATE system_prompts SET is_active = false WHERE prompt_type = 'base' AND is_active = true;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "2ceb9b4a66d1d908",
+          "name": "Postgres (bit_by_bit)"
+        }
+      }
+    },
+    {
+      "id": "pg-activate-new-base-prompt-1",
+      "name": "Activate New Base Prompt",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2540,
+        260
+      ],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "INSERT INTO system_prompts (version_tag, prompt_type, prompt_text, is_active, created_by)\nVALUES ('v' || ((SELECT count(*) FROM system_prompts WHERE prompt_type = 'base') + 1), 'base', $1, true, 'ldd-evaluator')\nRETURNING id, version_tag;",
+        "options": {
+          "queryReplacement": "={{ [ $('Get Proposal For Confirm Approve').first().json.proposed_prompt ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "2ceb9b4a66d1d908",
+          "name": "Postgres (bit_by_bit)"
+        }
+      }
+    },
+    {
+      "id": "pg-mark-proposal-approved-1",
+      "name": "Mark Proposal Approved",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2660,
+        260
+      ],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "UPDATE prompt_change_proposals SET status = 'approved', approved_by = $1 WHERE id::text = $2;",
+        "options": {
+          "queryReplacement": "={{ [ $('Verify & Normalize').item.json.platform_user_id, $('Get Proposal For Confirm Approve').first().json.id ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "2ceb9b4a66d1d908",
+          "name": "Postgres (bit_by_bit)"
+        }
+      }
+    },
+    {
+      "id": "telegram-send-activated-1",
+      "name": "Send Prompt Activated",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2780,
+        260
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "={{ $('Verify & Normalize').item.json.chat_id }}",
+        "text": "={{ \"Activated \" + $('Activate New Base Prompt').item.json.version_tag + \" as the new Base Prompt.\" }}",
+        "additionalFields": {}
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "895b9583b757539f",
+          "name": "Telegram Bot (bit_by_bit)"
+        }
+      }
+    },
+    {
+      "id": "respond-admin-activated-1",
+      "name": "Respond Admin Activated",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        2900,
+        260
+      ],
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "admin_prompt_activated",
+        "options": {
+          "responseCode": 200
+        }
+      }
+    },
+    {
+      "id": "telegram-send-confirm-approve-failed-1",
+      "name": "Send Confirm Approve Failed",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2420,
+        340
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "={{ $('Verify & Normalize').item.json.chat_id }}",
+        "text": "={{ \"This proposal is no longer pending (status: \" + ($json.status || 'not found') + \"). Nothing activated.\" }}",
+        "additionalFields": {}
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "895b9583b757539f",
+          "name": "Telegram Bot (bit_by_bit)"
+        }
+      }
+    },
+    {
+      "id": "respond-admin-confirm-approve-failed-1",
+      "name": "Respond Admin Confirm Approve Failed",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        2540,
+        340
+      ],
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "admin_confirm_approve_failed",
+        "options": {
+          "responseCode": 200
+        }
+      }
+    },
+    {
+      "id": "pg-find-rollback-target-confirm-1",
+      "name": "Find Rollback Target (Confirm)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2180,
+        420
+      ],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "SELECT t.id, t.version_tag\nFROM (SELECT 1) AS dummy\nLEFT JOIN LATERAL (\n  SELECT id, version_tag FROM system_prompts WHERE prompt_type = 'base' AND is_active = false ORDER BY created_at DESC LIMIT 1\n) t ON true\nLIMIT 1;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "2ceb9b4a66d1d908",
+          "name": "Postgres (bit_by_bit)"
+        }
+      }
+    },
+    {
+      "id": "if-rollback-target-found-confirm-1",
+      "name": "Rollback Target Found (Confirm)?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2300,
+        420
+      ],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          }
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "pg-deactivate-base-prompt-rollback-1",
+      "name": "Deactivate Current Base Prompt (Rollback)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2420,
+        380
+      ],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "UPDATE system_prompts SET is_active = false WHERE prompt_type = 'base' AND is_active = true;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "2ceb9b4a66d1d908",
+          "name": "Postgres (bit_by_bit)"
+        }
+      }
+    },
+    {
+      "id": "pg-reactivate-rollback-target-1",
+      "name": "Reactivate Rollback Target",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2540,
+        380
+      ],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "UPDATE system_prompts SET is_active = true WHERE id = $1;",
+        "options": {
+          "queryReplacement": "={{ [ $('Find Rollback Target (Confirm)').first().json.id ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "2ceb9b4a66d1d908",
+          "name": "Postgres (bit_by_bit)"
+        }
+      }
+    },
+    {
+      "id": "telegram-send-rolled-back-1",
+      "name": "Send Rolled Back",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2660,
+        380
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "={{ $('Verify & Normalize').item.json.chat_id }}",
+        "text": "={{ \"Rolled back to \" + $('Find Rollback Target (Confirm)').first().json.version_tag + \".\" }}",
+        "additionalFields": {}
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "895b9583b757539f",
+          "name": "Telegram Bot (bit_by_bit)"
+        }
+      }
+    },
+    {
+      "id": "respond-admin-rolled-back-1",
+      "name": "Respond Admin Rolled Back",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        2780,
+        380
+      ],
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "admin_prompt_rolled_back",
+        "options": {
+          "responseCode": 200
+        }
+      }
+    },
+    {
+      "id": "telegram-send-confirm-rollback-failed-1",
+      "name": "Send Confirm Rollback Failed",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2420,
+        460
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "={{ $('Verify & Normalize').item.json.chat_id }}",
+        "text": "={{ \"Nothing to roll back to.\" }}",
+        "additionalFields": {}
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "895b9583b757539f",
+          "name": "Telegram Bot (bit_by_bit)"
+        }
+      }
+    },
+    {
+      "id": "respond-admin-confirm-rollback-failed-1",
+      "name": "Respond Admin Confirm Rollback Failed",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        2540,
+        460
+      ],
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "admin_confirm_rollback_failed",
+        "options": {
+          "responseCode": 200
+        }
       }
     }
   ],
   "connections": {
     "Webhook": {
-      "main": [[{ "node": "Verify & Normalize", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Verify & Normalize",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Verify & Normalize": {
-      "main": [[{ "node": "Is Valid?", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Is Valid?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Is Valid?": {
       "main": [
-        [{ "node": "Insert Idempotency", "type": "main", "index": 0 }],
-        [{ "node": "Respond 401", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Insert Idempotency",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond 401",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Insert Idempotency": {
-      "main": [[{ "node": "Is New?", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Is New?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Is New?": {
       "main": [
-        [{ "node": "Check Rate Limit", "type": "main", "index": 0 }],
-        [{ "node": "Respond Duplicate", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Is Admin Command?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Duplicate",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Check Rate Limit": {
-      "main": [[{ "node": "Parse Rate Limit Count", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Parse Rate Limit Count",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Parse Rate Limit Count": {
-      "main": [[{ "node": "Over Rate Limit?", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Over Rate Limit?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Over Rate Limit?": {
       "main": [
-        [{ "node": "Insert interaction_logs (rate limited)", "type": "main", "index": 0 }],
-        [{ "node": "Is Feedback Command?", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Insert interaction_logs (rate limited)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Is Feedback Command?",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Is Feedback Command?": {
       "main": [
-        [{ "node": "Parse Feedback Command", "type": "main", "index": 0 }],
-        [{ "node": "Detect Language, Classify, Detect Sensitive Data", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Parse Feedback Command",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Detect Language, Classify, Detect Sensitive Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Parse Feedback Command": {
       "main": [
-        [{ "node": "Find Target Interaction", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Find Target Interaction",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Find Target Interaction": {
       "main": [
-        [{ "node": "Found Target Interaction?", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Found Target Interaction?",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Found Target Interaction?": {
       "main": [
-        [{ "node": "Update Feedback", "type": "main", "index": 0 }],
-        [{ "node": "Send No Target Reply", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Update Feedback",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send No Target Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Update Feedback": {
       "main": [
-        [{ "node": "Send Feedback Ack", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Send Feedback Ack",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Send Feedback Ack": {
       "main": [
-        [{ "node": "Respond Feedback Recorded", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Respond Feedback Recorded",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Send No Target Reply": {
       "main": [
-        [{ "node": "Respond No Feedback Target", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Respond No Feedback Target",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Insert interaction_logs (rate limited)": {
-      "main": [[{ "node": "Send Rate Limited Reply", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Send Rate Limited Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Send Rate Limited Reply": {
-      "main": [[{ "node": "Respond Rate Limited", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Respond Rate Limited",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Detect Language, Classify, Detect Sensitive Data": {
-      "main": [[{ "node": "Upsert User", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Upsert User",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Upsert User": {
-      "main": [[{ "node": "Sensitive Data Flagged?", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Sensitive Data Flagged?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Sensitive Data Flagged?": {
       "main": [
-        [{ "node": "Insert sensitive_data_events", "type": "main", "index": 0 }],
-        [{ "node": "Classification Is PUBLIC?", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Insert sensitive_data_events",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Classification Is PUBLIC?",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Insert sensitive_data_events": {
-      "main": [[{ "node": "Alert Admin", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Alert Admin",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Alert Admin": {
-      "main": [[{ "node": "Insert interaction_logs (flagged)", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Insert interaction_logs (flagged)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Insert interaction_logs (flagged)": {
-      "main": [[{ "node": "Send Safe Redirect", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Send Safe Redirect",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Send Safe Redirect": {
-      "main": [[{ "node": "Respond Sensitive Blocked", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Respond Sensitive Blocked",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Classification Is PUBLIC?": {
       "main": [
-        [{ "node": "Load Conversation History", "type": "main", "index": 0 }],
-        [{ "node": "Insert interaction_logs (classification blocked)", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Load Conversation History",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Insert interaction_logs (classification blocked)",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Load Conversation History": {
-      "main": [[{ "node": "Check Cache Eligible", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Check Cache Eligible",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Check Cache Eligible": {
-      "main": [[{ "node": "Embed Query", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Embed Query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Embed Query": {
-      "main": [[{ "node": "Search Semantic Cache", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Search Semantic Cache",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Search Semantic Cache": {
-      "main": [[{ "node": "Cache Hit?", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Cache Hit?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Cache Hit?": {
       "main": [
         [
-          { "node": "Format Cached Response", "type": "main", "index": 0 },
-          { "node": "Update Cache Hit Count", "type": "main", "index": 0 }
+          {
+            "node": "Format Cached Response",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Update Cache Hit Count",
+            "type": "main",
+            "index": 0
+          }
         ],
-        [{ "node": "Get Router Prompt", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Get Router Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Get Router Prompt": {
-      "main": [[{ "node": "Get Router Model", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Get Router Model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Get Router Model": {
-      "main": [[{ "node": "Classify Intent", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Classify Intent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Format Cached Response": {
-      "main": [[{ "node": "Build Conversation Update", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Build Conversation Update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Classify Intent": {
-      "main": [[{ "node": "Parse Intent", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Parse Intent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Parse Intent": {
-      "main": [[{ "node": "Get Security Prompt", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Get Security Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Get Security Prompt": {
-      "main": [[{ "node": "Get Security Model", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Get Security Model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Get Security Model": {
-      "main": [[{ "node": "Classify Security Signal", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Classify Security Signal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Classify Security Signal": {
-      "main": [[{ "node": "Parse Security Signal", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Parse Security Signal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Parse Security Signal": {
-      "main": [[{ "node": "Search Knowledge Base", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Search Knowledge Base",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Search Knowledge Base": {
-      "main": [[{ "node": "Pick Best Match", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Pick Best Match",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Pick Best Match": {
-      "main": [[{ "node": "Get System Prompt", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Get System Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Get System Prompt": {
-      "main": [[{ "node": "Get Budget Status", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Get Budget Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Get Budget Status": {
-      "main": [[{ "node": "Budget Guard", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Budget Guard",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Budget Guard": {
-      "main": [[{ "node": "Route Model Tier", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Route Model Tier",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Route Model Tier": {
-      "main": [[{ "node": "Tier Is Zero?", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Tier Is Zero?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Tier Is Zero?": {
       "main": [
-        [{ "node": "Format Tier0 Response", "type": "main", "index": 0 }],
-        [{ "node": "Prepare Generation Context", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Format Tier0 Response",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare Generation Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Format Tier0 Response": {
-      "main": [[{ "node": "Build Conversation Update", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Build Conversation Update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Prepare Generation Context": {
-      "main": [[{ "node": "Get Model Pricing", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Get Model Pricing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Get Model Pricing": {
-      "main": [[{ "node": "Tier Is One?", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Tier Is One?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Tier Is One?": {
       "main": [
-        [{ "node": "Call Tier 1 Model", "type": "main", "index": 0 }],
-        [{ "node": "Call Tier 2 Model", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Call Tier 1 Model",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Call Tier 2 Model",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Call Tier 1 Model": {
-      "main": [[{ "node": "Validate Tier 1 Output", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Validate Tier 1 Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Validate Tier 1 Output": {
-      "main": [[{ "node": "Build Conversation Update", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Build Conversation Update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Call Tier 2 Model": {
-      "main": [[{ "node": "Validate Tier 2 Output", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Validate Tier 2 Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Validate Tier 2 Output": {
-      "main": [[{ "node": "Build Conversation Update", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Build Conversation Update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Build Conversation Update": {
-      "main": [[{ "node": "Determine Should Cache", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Determine Should Cache",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Determine Should Cache": {
-      "main": [[{ "node": "Should Cache?", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Should Cache?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Should Cache?": {
       "main": [
-        [{ "node": "Save To Cache", "type": "main", "index": 0 }],
-        [{ "node": "Insert interaction_logs (final)", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Save To Cache",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Insert interaction_logs (final)",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Save To Cache": {
-      "main": [[{ "node": "Insert interaction_logs (final)", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Insert interaction_logs (final)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Insert interaction_logs (final)": {
-      "main": [[{ "node": "Save Conversation Turn", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Save Conversation Turn",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Save Conversation Turn": {
-      "main": [[{ "node": "Prepare Telegram Send", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Prepare Telegram Send",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Prepare Telegram Send": {
-      "main": [[{ "node": "Send Telegram Message", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Send Telegram Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Send Telegram Message": {
-      "main": [[{ "node": "Update interaction_logs (message_id)", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Update interaction_logs (message_id)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Update interaction_logs (message_id)": {
-      "main": [[{ "node": "Respond Success", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Respond Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Insert interaction_logs (classification blocked)": {
-      "main": [[{ "node": "Send Classification Refusal", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Send Classification Refusal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Send Classification Refusal": {
-      "main": [[{ "node": "Respond Classification Blocked", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Respond Classification Blocked",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Admin Command?": {
+      "main": [
+        [
+          {
+            "node": "Parse Admin Command",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Check Rate Limit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Admin Command": {
+      "main": [
+        [
+          {
+            "node": "Is Pending?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Pending?": {
+      "main": [
+        [
+          {
+            "node": "List Pending Proposals",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Is Prompts?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Prompts?": {
+      "main": [
+        [
+          {
+            "node": "List Base Prompts",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Is Approve?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Approve?": {
+      "main": [
+        [
+          {
+            "node": "Get Proposal For Approve",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Is Reject?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Reject?": {
+      "main": [
+        [
+          {
+            "node": "Reject Proposal",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Is Rollback?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Rollback?": {
+      "main": [
+        [
+          {
+            "node": "Find Rollback Target",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Is Confirm Approve?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Confirm Approve?": {
+      "main": [
+        [
+          {
+            "node": "Get Proposal For Confirm Approve",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Find Rollback Target (Confirm)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "List Pending Proposals": {
+      "main": [
+        [
+          {
+            "node": "Format Pending List",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Pending List": {
+      "main": [
+        [
+          {
+            "node": "Send Pending List",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Pending List": {
+      "main": [
+        [
+          {
+            "node": "Respond Admin Pending",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "List Base Prompts": {
+      "main": [
+        [
+          {
+            "node": "Format Prompts List",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Prompts List": {
+      "main": [
+        [
+          {
+            "node": "Send Prompts List",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Prompts List": {
+      "main": [
+        [
+          {
+            "node": "Respond Admin Prompts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Proposal For Approve": {
+      "main": [
+        [
+          {
+            "node": "Proposal Is Pending?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Proposal Is Pending?": {
+      "main": [
+        [
+          {
+            "node": "Send Approve Confirmation Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Approve Not Found",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Approve Confirmation Prompt": {
+      "main": [
+        [
+          {
+            "node": "Respond Admin Approve Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Approve Not Found": {
+      "main": [
+        [
+          {
+            "node": "Respond Admin Approve Not Found",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reject Proposal": {
+      "main": [
+        [
+          {
+            "node": "Reject Succeeded?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reject Succeeded?": {
+      "main": [
+        [
+          {
+            "node": "Send Reject Confirmation",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Reject Not Found",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Reject Confirmation": {
+      "main": [
+        [
+          {
+            "node": "Respond Admin Reject Confirm",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Reject Not Found": {
+      "main": [
+        [
+          {
+            "node": "Respond Admin Reject Not Found",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Rollback Target": {
+      "main": [
+        [
+          {
+            "node": "Rollback Target Found?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rollback Target Found?": {
+      "main": [
+        [
+          {
+            "node": "Send Rollback Confirmation Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Rollback None",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Rollback Confirmation Prompt": {
+      "main": [
+        [
+          {
+            "node": "Respond Admin Rollback Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Rollback None": {
+      "main": [
+        [
+          {
+            "node": "Respond Admin Rollback None",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Proposal For Confirm Approve": {
+      "main": [
+        [
+          {
+            "node": "Proposal Still Pending?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Proposal Still Pending?": {
+      "main": [
+        [
+          {
+            "node": "Deactivate Current Base Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Confirm Approve Failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Deactivate Current Base Prompt": {
+      "main": [
+        [
+          {
+            "node": "Activate New Base Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Activate New Base Prompt": {
+      "main": [
+        [
+          {
+            "node": "Mark Proposal Approved",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Proposal Approved": {
+      "main": [
+        [
+          {
+            "node": "Send Prompt Activated",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Prompt Activated": {
+      "main": [
+        [
+          {
+            "node": "Respond Admin Activated",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Confirm Approve Failed": {
+      "main": [
+        [
+          {
+            "node": "Respond Admin Confirm Approve Failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Rollback Target (Confirm)": {
+      "main": [
+        [
+          {
+            "node": "Rollback Target Found (Confirm)?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rollback Target Found (Confirm)?": {
+      "main": [
+        [
+          {
+            "node": "Deactivate Current Base Prompt (Rollback)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Confirm Rollback Failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Deactivate Current Base Prompt (Rollback)": {
+      "main": [
+        [
+          {
+            "node": "Reactivate Rollback Target",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reactivate Rollback Target": {
+      "main": [
+        [
+          {
+            "node": "Send Rolled Back",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Rolled Back": {
+      "main": [
+        [
+          {
+            "node": "Respond Admin Rolled Back",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Confirm Rollback Failed": {
+      "main": [
+        [
+          {
+            "node": "Respond Admin Confirm Rollback Failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   }
 }

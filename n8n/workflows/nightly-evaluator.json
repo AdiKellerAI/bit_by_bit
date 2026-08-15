@@ -320,7 +320,7 @@
         "resource": "message",
         "operation": "sendMessage",
         "chatId": "={{ $env.ADMIN_TELEGRAM_CHAT_ID }}",
-        "text": "={{ \"Nightly evaluator ran.\\nStatus: \" + $('Score & Decide').item.json.status + \"\\nGolden eval score: \" + Math.round($('Score & Decide').item.json.pass_rate * 100) + \"%\\nCost: $\" + $('Score & Decide').item.json.evaluation_cost_usd.toFixed(4) + \"\\n\\n\" + ($('Score & Decide').item.json.status === 'rejected' ? \"Auto-rejected, no action needed.\" : \"Awaiting approval. /approve and /reject commands are not wired up yet (coming in the next sub-phase) - check prompt_change_proposals directly for now.\") }}",
+        "text": "={{ \"Nightly evaluator ran.\\nStatus: \" + $('Score & Decide').item.json.status + \"\\nGolden eval score: \" + Math.round($('Score & Decide').item.json.pass_rate * 100) + \"%\\nCost: $\" + $('Score & Decide').item.json.evaluation_cost_usd.toFixed(4) + \"\\n\\n\" + ($('Score & Decide').item.json.status === 'rejected' ? \"Auto-rejected, no action needed.\" : \"Awaiting approval. Use /pending to see it, or /approve \" + $json.id + \" to activate it.\") }}",
         "additionalFields": {}
       },
       "credentials": {

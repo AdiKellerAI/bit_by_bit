@@ -13,7 +13,7 @@ Tracked against [`PROJECT-SPEC.md` §24](docs/project_setup/PROJECT-SPEC.md)'s o
 | 0-3 | Architecture docs, local infra, database schema, messaging pipe | Done |
 | 4 | Agent Core: language detection, classification, sensitive-data detection, RAG, budget guard, three-tier generation, rate limit, semantic cache, intent router | Done |
 | 5 | Prompt System: Base/Router/Security prompts live; Evaluator/Digest stored, awaiting a consumer | Done |
-| 6 | LDD: telemetry, feedback, evaluator loop, golden-eval, human approval, rollback | Not started |
+| 6 | LDD: telemetry, feedback, nightly evaluator + golden-eval scoring, and admin approve/reject/rollback commands are done; the evaluator loop's other input signals (repeated questions, security false positives, low-confidence RAG) remain a documented gap | Mostly done |
 | 7 | Weekly Community Automation: digest, knowledge-gap report, cost report | Not started |
 | 8-9 | Pilot, Expansion | Not started |
 
@@ -48,6 +48,34 @@ The bot is live and answering real questions over Telegram right now. See
 - **Logs everything** (`interaction_logs`): query, response, model used, tokens, real cost,
   cache hit/miss, security signals, retrieved KB sources, which prompt version answered - the
   foundation for the self-improving loop that Phase 6 builds.
+- **Takes feedback** on any answer: reply to it with `feedback 1` (good) or `feedback 0` (bad) -
+  correlates back to that specific interaction via Telegram's reply mechanism, or falls back to
+  your most recent message if you don't reply-to a specific one.
+- **Improves itself nightly, with a human gate before anything goes live**: a Schedule Trigger
+  workflow (`n8n/workflows/nightly-evaluator.json`) reviews negative-feedback interactions,
+  proposes a Base Prompt change, scores the candidate against a 22-question golden evaluation
+  set, and either auto-rejects a weak candidate or leaves it `pending` for the admin to review -
+  it can never activate its own change (see Admin commands below).
+
+## Admin commands
+
+A separate control surface, same Telegram chat, gated to `ADMIN_TELEGRAM_CHAT_ID` only - anyone
+else sending these is treated as an ordinary message, not a command.
+
+| Command | What it does |
+|---|---|
+| `/pending` | List proposals awaiting review (id, golden-eval score, why it was proposed) |
+| `/prompts` | List Base Prompt version history, marking which one is active |
+| `/approve <id>` | Show what activating a proposal would do - does NOT activate yet |
+| `/confirm approve <id>` | Actually activate it: deactivates the current Base Prompt, activates the proposal's prompt as the new version |
+| `/reject <id>` | Reject a pending proposal immediately (non-destructive, no confirmation needed) |
+| `/rollback` | Show what reverting to the previous Base Prompt version would do - does NOT roll back yet |
+| `/confirm rollback` | Actually revert to the previous version |
+
+`/approve`/`/confirm approve` and `/rollback`/`/confirm rollback` are deliberately two-step -
+PROJECT-SPEC.md §16 requires confirmation before prompt activation and rollback specifically,
+since a wrong activation affects every subsequent conversation. Admin commands are exempt from
+the per-user rate limit (control actions, not conversation).
 
 ## Flow diagram
 
@@ -179,9 +207,13 @@ ORDER BY created_at DESC LIMIT 20;
 -- Semantic cache contents and hit counts
 SELECT query_text, hit_count, created_at, expires_at FROM semantic_cache
 ORDER BY created_at DESC LIMIT 20;
+
+-- LDD proposals awaiting admin review (also reachable via /pending in Telegram)
+SELECT id, status, evaluation_score, evaluation_cost_usd, created_at
+FROM prompt_change_proposals ORDER BY created_at DESC LIMIT 20;
 ```
 
-All 13 tables: `\dt` once connected, or see [`database/schema.sql`](database/schema.sql) for
+All tables: `\dt` once connected, or see [`database/schema.sql`](database/schema.sql) for
 the full current schema.
 
 ## Configuration (`model_registry` / `budget_policy`)
