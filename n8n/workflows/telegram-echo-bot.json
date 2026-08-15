@@ -443,6 +443,38 @@
       }
     },
     {
+      "id": "pg-get-router-prompt-1",
+      "name": "Get Router Prompt",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [2440, -220],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "SELECT prompt_text FROM system_prompts WHERE prompt_type = 'router' AND is_active = true\nUNION ALL\nSELECT 'Classify the user message. Respond with ONLY a JSON object, no other text: {\"intent\": \"question|greeting|feedback|off_topic|clarification\", \"complexity\": \"simple|complex\", \"needs_kb\": true|false}'\nWHERE NOT EXISTS (SELECT 1 FROM system_prompts WHERE prompt_type = 'router' AND is_active = true)\nLIMIT 1;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": { "id": "2ceb9b4a66d1d908", "name": "Postgres (bit_by_bit)" }
+      }
+    },
+    {
+      "id": "pg-get-router-model-1",
+      "name": "Get Router Model",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [2530, -220],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "SELECT COALESCE(mr.model_name, 'gpt-5.4-nano') AS model_name\nFROM (SELECT 1) AS dummy\nLEFT JOIN LATERAL (\n  SELECT model_name FROM model_registry WHERE tier = '1' AND enabled = true\n  ORDER BY effective_from DESC LIMIT 1\n) mr ON true\nLIMIT 1;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": { "id": "2ceb9b4a66d1d908", "name": "Postgres (bit_by_bit)" }
+      }
+    },
+    {
       "id": "http-classify-intent-1",
       "name": "Classify Intent",
       "type": "n8n-nodes-base.httpRequest",
@@ -456,7 +488,7 @@
         "sendBody": true,
         "contentType": "json",
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ model: 'gpt-5.4-nano', max_completion_tokens: 50, messages: [ { role: 'system', content: 'Classify the user message. Respond with ONLY a JSON object, no other text: {\"intent\": \"question|greeting|feedback|off_topic|clarification\", \"complexity\": \"simple|complex\", \"needs_kb\": true|false}' }, { role: 'user', content: $('Verify & Normalize').item.json.text } ] }) }}",
+        "jsonBody": "={{ JSON.stringify({ model: $('Get Router Model').item.json.model_name, max_completion_tokens: 50, messages: [ { role: 'system', content: $('Get Router Prompt').item.json.prompt_text }, { role: 'user', content: $('Verify & Normalize').item.json.text } ] }) }}",
         "options": {}
       },
       "credentials": {
@@ -1035,8 +1067,14 @@
           { "node": "Format Cached Response", "type": "main", "index": 0 },
           { "node": "Update Cache Hit Count", "type": "main", "index": 0 }
         ],
-        [{ "node": "Classify Intent", "type": "main", "index": 0 }]
+        [{ "node": "Get Router Prompt", "type": "main", "index": 0 }]
       ]
+    },
+    "Get Router Prompt": {
+      "main": [[{ "node": "Get Router Model", "type": "main", "index": 0 }]]
+    },
+    "Get Router Model": {
+      "main": [[{ "node": "Classify Intent", "type": "main", "index": 0 }]]
     },
     "Format Cached Response": {
       "main": [[{ "node": "Build Conversation Update", "type": "main", "index": 0 }]]
