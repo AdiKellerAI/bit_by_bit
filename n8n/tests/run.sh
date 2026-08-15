@@ -118,8 +118,11 @@ curl -s -o /dev/null -X POST "$URL" \
   -H "X-Telegram-Bot-Api-Secret-Token: $SECRET" \
   -d "{\"update_id\": $RAG_MATCH_UPDATE_ID, \"message\": {\"message_id\": 1, \"from\": {\"id\": $RAG_MATCH_USER_ID}, \"chat\": {\"id\": $RAG_MATCH_USER_ID, \"type\": \"private\"}, \"date\": 1735689600, \"text\": \"Tell me about LangTalks podcast\"}}"
 sleep 1
+# Phase 7: intent is now a real router classification appended to the routing outcome (e.g.
+# kb_match_question), not a fixed label - match on prefix, not exact string, since the
+# classifier's exact sub-label isn't guaranteed deterministic.
 rag_match=$(psql_exec -tAc "SELECT intent || '|' || routed_model FROM interaction_logs WHERE platform_user_id = '$RAG_MATCH_USER_ID'" | tr -d '[:space:]')
-if [ "$rag_match" = "kb_match|none" ]; then
+if [[ "$rag_match" == kb_match_*"|none" ]]; then
   echo "[x] RAG query matching seeded content returns kb_match and short-circuits to Tier 0 (routed_model=none)"
 else
   echo "[ ] RAG query matching seeded content returns kb_match and short-circuits to Tier 0 (got: $rag_match)"
@@ -137,7 +140,7 @@ sleep 1
 # an unrelated query now gets a real generated answer instead of a canned "I don't know", as
 # long as it does NOT fabricate a KB citation (intent must not be kb_match).
 rag_nomatch=$(psql_exec -tAc "SELECT intent FROM interaction_logs WHERE platform_user_id = '$RAG_NOMATCH_USER_ID'" | tr -d '[:space:]')
-if [ "$rag_nomatch" = "generated_tier1" ] || [ "$rag_nomatch" = "generated_tier2" ]; then
+if [[ "$rag_nomatch" == generated_tier1_* ]] || [[ "$rag_nomatch" == generated_tier2_* ]]; then
   echo "[x] unrelated RAG query does not fabricate a KB match; gets a real generated answer instead (intent: $rag_nomatch)"
 else
   echo "[ ] unrelated RAG query does not fabricate a KB match (got intent: $rag_nomatch)"
@@ -154,7 +157,7 @@ curl -s -o /dev/null -X POST "$URL" \
   -d "{\"update_id\": $TIER1_UPDATE_ID, \"message\": {\"message_id\": 1, \"from\": {\"id\": $TIER1_USER_ID}, \"chat\": {\"id\": $TIER1_USER_ID, \"type\": \"private\"}, \"date\": 1735689600, \"text\": \"What's a quick way to reverse a string in Python?\"}}"
 sleep 3
 tier1_row=$(psql_exec -tAc "SELECT routed_model || '|' || intent || '|' || (cost_usd > 0)::text || '|' || (input_tokens > 0)::text || '|' || (output_tokens > 0)::text FROM interaction_logs WHERE platform_user_id = '$TIER1_USER_ID'")
-if [ "$tier1_row" = "gpt-5.4-nano|generated_tier1|true|true|true" ]; then
+if [[ "$tier1_row" == "gpt-5.4-nano|generated_tier1_"*"|true|true|true" ]]; then
   echo "[x] simple KB-unrelated question routes to Tier 1 (gpt-5.4-nano) with tokens/cost logged"
 else
   echo "[ ] simple KB-unrelated question routes to Tier 1 (got: $tier1_row)"
@@ -171,10 +174,56 @@ curl -s -o /dev/null -X POST "$URL" \
   -d "{\"update_id\": $TIER2_UPDATE_ID, \"message\": {\"message_id\": 1, \"from\": {\"id\": $TIER2_USER_ID}, \"chat\": {\"id\": $TIER2_USER_ID, \"type\": \"private\"}, \"date\": 1735689600, \"text\": \"Please explain in detail how a hash table works internally and compare it to a binary search tree for lookup performance.\"}}"
 sleep 3
 tier2_row=$(psql_exec -tAc "SELECT routed_model || '|' || intent || '|' || (cost_usd > 0)::text || '|' || (input_tokens > 0)::text || '|' || (output_tokens > 0)::text FROM interaction_logs WHERE platform_user_id = '$TIER2_USER_ID'")
-if [ "$tier2_row" = "claude-sonnet-5|generated_tier2|true|true|true" ]; then
+if [[ "$tier2_row" == "claude-sonnet-5|generated_tier2_"*"|true|true|true" ]]; then
   echo "[x] complexity-signaling question routes to Tier 2 (claude-sonnet-5) with tokens/cost logged"
 else
   echo "[ ] complexity-signaling question routes to Tier 2 (got: $tier2_row)"
+  fail=1
+fi
+
+# Phase 7: intent router. A plain greeting must not spuriously claim a KB match even if RAG's
+# similarity search happens to return a low-distance row by coincidence - the router's own
+# classification (a real Tier 1 call, not a post-hoc label) must show up in interaction_logs,
+# proving it actually ran and its output was used, not just a static default.
+GREETING_UPDATE_ID="37$(date +%s)"
+GREETING_USER_ID="38$(date +%s)"
+curl -s -o /dev/null -X POST "$URL" \
+  -H "Content-Type: application/json" \
+  -H "X-Telegram-Bot-Api-Secret-Token: $SECRET" \
+  -d "{\"update_id\": $GREETING_UPDATE_ID, \"message\": {\"message_id\": 1, \"from\": {\"id\": $GREETING_USER_ID}, \"chat\": {\"id\": $GREETING_USER_ID, \"type\": \"private\"}, \"date\": 1735689600, \"text\": \"hi\"}}"
+sleep 4
+greeting_intent=$(psql_exec -tAc "SELECT intent FROM interaction_logs WHERE platform_user_id = '$GREETING_USER_ID'" | tr -d '[:space:]')
+if [[ "$greeting_intent" == generated_tier1_* ]] || [[ "$greeting_intent" == generated_tier2_* ]]; then
+  echo "[x] plain greeting is classified by the intent router, not fabricated as a KB match (intent: $greeting_intent)"
+else
+  echo "[ ] plain greeting is classified by the intent router (got intent: $greeting_intent)"
+  fail=1
+fi
+
+# Phase 7: rate limit. Fire 12 rapid requests (no sleep between) for one user - the Check
+# Rate Limit node allows 10 per 60s window, so the 11th/12th should be throttled. Reuses a
+# KB-matching query (see the RAG-match test above) so the allowed 10 cost only a cheap
+# embedding call each, not 10 real generation calls. Response bodies are NOT checked here -
+# every path that sends a Telegram message uses a synthetic chat_id that Telegram rejects
+# with "chat not found", aborting the execution before the final Respond node runs (this is
+# true of every blocked/flagged path in this workflow, not just rate limiting) - interaction_logs
+# is written before the Telegram send, so it's the reliable place to assert from, matching
+# every other blocked-path check above.
+RATE_LIMIT_USER_ID="21$(date +%s)"
+RATE_LIMIT_PREFIX="21$(date +%s)"
+for i in $(seq 1 12); do
+  curl -s -o /dev/null -X POST "$URL" \
+    -H "Content-Type: application/json" \
+    -H "X-Telegram-Bot-Api-Secret-Token: $SECRET" \
+    -d "{\"update_id\": ${RATE_LIMIT_PREFIX}${i}, \"message\": {\"message_id\": $i, \"from\": {\"id\": $RATE_LIMIT_USER_ID}, \"chat\": {\"id\": $RATE_LIMIT_USER_ID, \"type\": \"private\"}, \"date\": 1735689600, \"text\": \"Tell me about LangTalks podcast\"}}"
+done
+sleep 2
+rate_limited_count=$(psql_exec -tAc "SELECT count(*) FROM interaction_logs WHERE platform_user_id = '$RATE_LIMIT_USER_ID' AND intent = 'rate_limited'" | tr -d '[:space:]')
+allowed_count=$(psql_exec -tAc "SELECT count(*) FROM interaction_logs WHERE platform_user_id = '$RATE_LIMIT_USER_ID' AND intent != 'rate_limited'" | tr -d '[:space:]')
+if [ "$rate_limited_count" = "2" ] && [ "$allowed_count" = "10" ]; then
+  echo "[x] 11th/12th rapid request from one user is rate-limited (10 allowed, 2 throttled)"
+else
+  echo "[ ] 11th/12th rapid request from one user is rate-limited (got: $allowed_count allowed, $rate_limited_count throttled)"
   fail=1
 fi
 
@@ -219,10 +268,19 @@ else
   fail=1
 fi
 
-psql_exec -c "DELETE FROM webhook_events WHERE platform_message_id IN ('$TEST_UPDATE_ID', '$SENSITIVE_UPDATE_ID', '$CLEAN_UPDATE_ID', '$RAG_MATCH_UPDATE_ID', '$RAG_NOMATCH_UPDATE_ID', '$TIER1_UPDATE_ID', '$TIER2_UPDATE_ID');" >/dev/null
+# Phase 7: every test message above that reaches real generation (not KB-matched, not
+# early-blocked) is now legitimately written to the semantic cache (Phase 7 gap 2/3). Without
+# cleanup, re-running this suite within the cache's 24h freshness window would hit the cache
+# instead of generating fresh (e.g. intent comes back 'generated_tier1_cached'). Clean up every
+# such query text so each run starts from a real cache miss, same as every other test's data
+# cleanup below. KB-matched messages (e.g. the LangTalks queries) are never written to the
+# cache in the first place (see "Determine Should Cache"), so they don't need listing here.
+psql_exec -c "DELETE FROM semantic_cache WHERE query_text IN ('verify-all test', 'What is RAG?', 'best pizza recipe', 'What''s a quick way to reverse a string in Python?', 'Please explain in detail how a hash table works internally and compare it to a binary search tree for lookup performance.', 'hi');" >/dev/null
+
+psql_exec -c "DELETE FROM webhook_events WHERE platform_message_id IN ('$TEST_UPDATE_ID', '$SENSITIVE_UPDATE_ID', '$CLEAN_UPDATE_ID', '$RAG_MATCH_UPDATE_ID', '$RAG_NOMATCH_UPDATE_ID', '$TIER1_UPDATE_ID', '$TIER2_UPDATE_ID', '$GREETING_UPDATE_ID') OR platform_message_id LIKE '${RATE_LIMIT_PREFIX}%';" >/dev/null
 psql_exec -c "DELETE FROM sensitive_data_events WHERE platform_user_id = '$SENSITIVE_USER_ID';" >/dev/null
-psql_exec -c "DELETE FROM interaction_logs WHERE platform_user_id IN ('$TEST_USER_ID', '$SENSITIVE_USER_ID', '$CLEAN_USER_ID', '$RAG_MATCH_USER_ID', '$RAG_NOMATCH_USER_ID', '$TIER1_USER_ID', '$TIER2_USER_ID');" >/dev/null
-psql_exec -c "DELETE FROM users WHERE platform_user_id IN ('$TEST_USER_ID', '$SENSITIVE_USER_ID', '$CLEAN_USER_ID', '$RAG_MATCH_USER_ID', '$RAG_NOMATCH_USER_ID', '$TIER1_USER_ID', '$TIER2_USER_ID');" >/dev/null
+psql_exec -c "DELETE FROM interaction_logs WHERE platform_user_id IN ('$TEST_USER_ID', '$SENSITIVE_USER_ID', '$CLEAN_USER_ID', '$RAG_MATCH_USER_ID', '$RAG_NOMATCH_USER_ID', '$TIER1_USER_ID', '$TIER2_USER_ID', '$RATE_LIMIT_USER_ID', '$GREETING_USER_ID');" >/dev/null
+psql_exec -c "DELETE FROM users WHERE platform_user_id IN ('$TEST_USER_ID', '$SENSITIVE_USER_ID', '$CLEAN_USER_ID', '$RAG_MATCH_USER_ID', '$RAG_NOMATCH_USER_ID', '$TIER1_USER_ID', '$TIER2_USER_ID', '$RATE_LIMIT_USER_ID', '$GREETING_USER_ID');" >/dev/null
 
 if [ "$fail" -eq 0 ]; then
   echo "All n8n Telegram workflow tests passed."

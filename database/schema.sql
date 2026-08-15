@@ -192,6 +192,28 @@ CREATE TABLE public.schema_migrations (
 
 
 --
+-- Name: semantic_cache; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.semantic_cache (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    query_embedding public.vector(1536) NOT NULL,
+    query_text text NOT NULL,
+    language text NOT NULL,
+    intent text NOT NULL,
+    response_text text NOT NULL,
+    routed_model text NOT NULL,
+    input_tokens integer,
+    output_tokens integer,
+    cost_usd numeric,
+    retrieved_kb_ids jsonb,
+    hit_count integer DEFAULT 0 NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    expires_at timestamp with time zone NOT NULL
+);
+
+
+--
 -- Name: sensitive_data_events; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -331,6 +353,14 @@ ALTER TABLE ONLY public.schema_migrations
 
 
 --
+-- Name: semantic_cache semantic_cache_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.semantic_cache
+    ADD CONSTRAINT semantic_cache_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: sensitive_data_events sensitive_data_events_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -416,6 +446,20 @@ CREATE INDEX idx_model_registry_tier_enabled ON public.model_registry USING btre
 --
 
 CREATE INDEX idx_prompt_change_proposals_status ON public.prompt_change_proposals USING btree (status);
+
+
+--
+-- Name: idx_semantic_cache_embedding_hnsw; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_semantic_cache_embedding_hnsw ON public.semantic_cache USING hnsw (query_embedding public.vector_cosine_ops);
+
+
+--
+-- Name: idx_semantic_cache_expires; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_semantic_cache_expires ON public.semantic_cache USING btree (expires_at);
 
 
 --
@@ -523,4 +567,5 @@ INSERT INTO public.schema_migrations (version) VALUES
     ('20260814190010'),
     ('20260814190011'),
     ('20260814190012'),
-    ('20260814190013');
+    ('20260814190013'),
+    ('20260815120000');

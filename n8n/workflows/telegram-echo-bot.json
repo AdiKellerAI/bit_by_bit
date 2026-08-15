@@ -89,6 +89,104 @@
       }
     },
     {
+      "id": "redis-rate-limit-1",
+      "name": "Check Rate Limit",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [1000, 40],
+      "onError": "continueRegularOutput",
+      "parameters": {
+        "operation": "incr",
+        "key": "={{ 'ratelimit:' + $('Verify & Normalize').item.json.platform_user_id }}",
+        "expire": true,
+        "ttl": 60,
+        "options": {}
+      },
+      "credentials": {
+        "redis": { "id": "c4e8b2a951f7d360", "name": "Redis (bit_by_bit)" }
+      }
+    },
+    {
+      "id": "code-parse-rate-limit-1",
+      "name": "Parse Rate Limit Count",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1100, 40],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// The redis incr operation returns { json: { [theKeyName]: incrementVal } } - the property\n// name IS the literal Redis key (dynamic, includes platform_user_id), not a fixed field.\n// Normalize into a fixed field name so the next IF node has something stable to check.\n// If Redis was unavailable, \"Check Rate Limit\" failed open (continueRegularOutput) and\n// $json is empty here - Object.values(...)[0] is then undefined, and Number(undefined) is\n// NaN, which fails every comparison in the next IF node, so we default to 0 (not over limit).\nconst count = Object.values($json)[0];\nreturn [{ json: { rate_limit_count: Number(count) || 0 } }];\n"
+      }
+    },
+    {
+      "id": "if-over-rate-limit-1",
+      "name": "Over Rate Limit?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [1220, 40],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.rate_limit_count }}",
+              "rightValue": 10,
+              "operator": { "type": "number", "operation": "gt" }
+            }
+          ],
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 2 }
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "pg-interaction-log-rate-limited-1",
+      "name": "Insert interaction_logs (rate limited)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1440, 200],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "INSERT INTO interaction_logs (platform_user_id, platform, user_query, sensitive_data_flagged, intent)\nVALUES ($1, $2, '[rate limited]', false, 'rate_limited');",
+        "options": {
+          "queryReplacement": "={{ [$('Verify & Normalize').item.json.platform_user_id, $('Verify & Normalize').item.json.platform] }}"
+        }
+      },
+      "credentials": {
+        "postgres": { "id": "2ceb9b4a66d1d908", "name": "Postgres (bit_by_bit)" }
+      }
+    },
+    {
+      "id": "telegram-rate-limited-1",
+      "name": "Send Rate Limited Reply",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [1660, 200],
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "={{ $('Verify & Normalize').item.json.chat_id }}",
+        "text": "={{ \"\\u05d0\\u05ea\\u05d4 \\u05e9\\u05d5\\u05dc\\u05d7 \\u05d4\\u05d5\\u05d3\\u05e2\\u05d5\\u05ea \\u05de\\u05d4\\u05e8 \\u05de\\u05d3\\u05d9. \\u05e0\\u05e1\\u05d4 \\u05e9\\u05d5\\u05d1 \\u05d1\\u05e2\\u05d5\\u05d3 \\u05d3\\u05e7\\u05d4. / You're sending messages too fast. Please try again in a minute.\" }}",
+        "additionalFields": {}
+      },
+      "credentials": {
+        "telegramApi": { "id": "895b9583b757539f", "name": "Telegram Bot (bit_by_bit)" }
+      }
+    },
+    {
+      "id": "respond-rate-limited-1",
+      "name": "Respond Rate Limited",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [1880, 200],
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "rate_limited",
+        "options": { "responseCode": 200 }
+      }
+    },
+    {
       "id": "code-security-gate-1",
       "name": "Detect Language, Classify, Detect Sensitive Data",
       "type": "n8n-nodes-base.code",
@@ -264,6 +362,120 @@
       }
     },
     {
+      "id": "code-cache-eligible-1",
+      "name": "Check Cache Eligible",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2000, -260],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const text = $('Verify & Normalize').item.json.text || '';\n\nlet historyMessages = [];\ntry {\n  const raw = $('Load Conversation History').item.json.history_raw;\n  if (raw) {\n    const parsed = JSON.parse(raw);\n    if (Array.isArray(parsed)) historyMessages = parsed;\n  }\n} catch (e) { historyMessages = []; }\n\n// Semantic-cache eligibility per PROJECT-SPEC.md §9: \"no personalized context\" (only a fresh\n// conversation, no prior turns) and \"no time-sensitive question\". Gates both the cache lookup\n// (Search Semantic Cache) and the cache write (Determine Should Cache reuses this same value).\nconst TIME_SENSITIVE = /today|now|latest|current|this week|היום|עכשיו|אחרון|השבוע/i;\nconst cacheEligible = historyMessages.length === 0 && !TIME_SENSITIVE.test(text);\n\nreturn [{ json: { cache_eligible: cacheEligible } }];\n"
+      }
+    },
+    {
+      "id": "pg-search-cache-1",
+      "name": "Search Semantic Cache",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [2200, -260],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "SELECT sc.id, sc.response_text, sc.routed_model, sc.input_tokens, sc.output_tokens, sc.cost_usd, sc.retrieved_kb_ids, sc.intent\nFROM (SELECT 1) AS dummy\nLEFT JOIN LATERAL (\n  SELECT *\n  FROM semantic_cache\n  WHERE $3::boolean\n    AND query_embedding <=> $1::vector < 0.15\n    AND language = $2\n    AND expires_at > now()\n  ORDER BY query_embedding <=> $1::vector\n  LIMIT 1\n) sc ON true\nLIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ '[' + $json.data[0].embedding.join(',') + ']', $('Detect Language, Classify, Detect Sensitive Data').item.json.language, $('Check Cache Eligible').item.json.cache_eligible ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": { "id": "2ceb9b4a66d1d908", "name": "Postgres (bit_by_bit)" }
+      }
+    },
+    {
+      "id": "if-cache-hit-1",
+      "name": "Cache Hit?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [2420, -260],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.id }}",
+              "rightValue": "",
+              "operator": { "type": "string", "operation": "notEmpty" }
+            }
+          ],
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 2 }
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "code-format-cached-1",
+      "name": "Format Cached Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2640, -360],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const chatId = $('Verify & Normalize').item.json.chat_id;\nconst cache = $json;\n\nreturn [{\n  json: {\n    chat_id: chatId,\n    text: cache.response_text,\n    agent_response: cache.response_text,\n    routed_model: cache.routed_model,\n    input_tokens: 0,\n    output_tokens: 0,\n    cost_usd: 0,\n    intent: cache.intent + '_cached',\n    retrieved_kb_ids: JSON.stringify(cache.retrieved_kb_ids || []),\n    prompt_version_id: null,\n    cache_hit: true,\n    cached_input_tokens: cache.input_tokens || null,\n  },\n}];\n"
+      }
+    },
+    {
+      "id": "pg-update-cache-hit-1",
+      "name": "Update Cache Hit Count",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [2640, -160],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "UPDATE semantic_cache SET hit_count = hit_count + 1 WHERE id = $1;",
+        "options": {
+          "queryReplacement": "={{ [$json.id] }}"
+        }
+      },
+      "credentials": {
+        "postgres": { "id": "2ceb9b4a66d1d908", "name": "Postgres (bit_by_bit)" }
+      }
+    },
+    {
+      "id": "http-classify-intent-1",
+      "name": "Classify Intent",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2620, -160],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'gpt-5.4-nano', max_completion_tokens: 50, messages: [ { role: 'system', content: 'Classify the user message. Respond with ONLY a JSON object, no other text: {\"intent\": \"question|greeting|feedback|off_topic|clarification\", \"complexity\": \"simple|complex\", \"needs_kb\": true|false}' }, { role: 'user', content: $('Verify & Normalize').item.json.text } ] }) }}",
+        "options": {}
+      },
+      "credentials": {
+        "openAiApi": { "id": "53f2686ac5199beb", "name": "OpenAI (bit_by_bit)" }
+      }
+    },
+    {
+      "id": "code-parse-intent-1",
+      "name": "Parse Intent",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2740, -160],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const raw = $json.choices && $json.choices[0] && $json.choices[0].message && $json.choices[0].message.content;\nlet parsed;\ntry {\n  parsed = JSON.parse(raw);\n} catch (e) {\n  parsed = null;\n}\n\n// Fail toward today's pre-router behavior, not toward blocking: 'question'/'simple'/needs_kb\n// true means \"trust a real KB match if one exists, otherwise treat as ordinary Tier 1\".\nconst intent = (parsed && parsed.intent) || 'question';\nconst complexity = (parsed && parsed.complexity) || 'simple';\nconst needsKb = parsed && typeof parsed.needs_kb === 'boolean' ? parsed.needs_kb : true;\n\nreturn [{ json: { intent, complexity, needs_kb: needsKb } }];\n"
+      }
+    },
+    {
       "id": "pg-search-kb-1",
       "name": "Search Knowledge Base",
       "type": "n8n-nodes-base.postgres",
@@ -274,7 +486,7 @@
         "operation": "executeQuery",
         "query": "SELECT id, title, url, summary_he, summary_en, category, (embedding <=> $1::vector) AS distance\nFROM knowledge_base\nWHERE status = 'published'\nORDER BY distance\nLIMIT 3;",
         "options": {
-          "queryReplacement": "={{ ['[' + $json.data[0].embedding.join(',') + ']'] }}"
+          "queryReplacement": "={{ ['[' + $('Embed Query').item.json.data[0].embedding.join(',') + ']'] }}"
         }
       },
       "credentials": {
@@ -364,7 +576,7 @@
       "parameters": {
         "mode": "runOnceForAllItems",
         "language": "javaScript",
-        "jsCode": "const budgetState = $('Budget Guard').item.json.budget_state;\nconst match = $('Pick Best Match').item.json;\nconst text = $('Verify & Normalize').item.json.text || '';\nif (budgetState === 'HARD_STOP') return [{ json: { tier: 'tier0' } }];\nif (match.matched) return [{ json: { tier: 'tier0' } }];\nif (budgetState === 'RESTRICTED') return [{ json: { tier: 'tier1' } }];\nconst complexityKeywords = /explain in detail|write code|compare|debug|הסבר בפירוט|כתוב קוד|השווה|דיבאג|נפה שגיאות/i;\nconst questionMarkCount = (text.match(/\\?/g) || []).length;\nconst isComplex = text.length > 200 || questionMarkCount > 1 || complexityKeywords.test(text);\nreturn [{ json: { tier: isComplex ? 'tier2' : 'tier1' } }];\n"
+        "jsCode": "const budgetState = $('Budget Guard').item.json.budget_state;\nconst match = $('Pick Best Match').item.json;\n// Real intent router (Phase 7 gap 3/3) replaces the old regex/length heuristic entirely -\n// its own \"Parse Intent\" try/catch already provides the fallback path if the classification\n// call itself fails, so no second fallback heuristic is kept here.\nconst parsedIntent = $('Parse Intent').item.json;\nif (budgetState === 'HARD_STOP') return [{ json: { tier: 'tier0' } }];\n// Trust Pick Best Match's own similarity search alone for the tier0 short-circuit, not\n// needs_kb - tried gating this on needs_kb too and it suppressed a real, reliable match\n// (the router's judgment call is less trustworthy here than RAG's own distance threshold).\n// needs_kb still flows into logging (see Format Tier0 Response) as a descriptive signal.\nif (match.matched) return [{ json: { tier: 'tier0' } }];\nif (budgetState === 'RESTRICTED') return [{ json: { tier: 'tier1' } }];\nreturn [{ json: { tier: parsedIntent.complexity === 'complex' ? 'tier2' : 'tier1' } }];\n"
       }
     },
     {
@@ -397,7 +609,7 @@
       "parameters": {
         "mode": "runOnceForAllItems",
         "language": "javaScript",
-        "jsCode": "const chatId = $('Verify & Normalize').item.json.chat_id;\nconst language = $('Detect Language, Classify, Detect Sensitive Data').item.json.language;\nconst match = $('Pick Best Match').item.json;\nconst budgetState = $('Budget Guard').item.json.budget_state;\n\nlet text, intent;\nif (match.matched) {\n  text = language === 'he'\n    ? `מצאתי את זה: *${match.title}*\\n${match.summary_he}\\n${match.url}`\n    : `Here's what I found: *${match.title}*\\n${match.summary_en}\\n${match.url}`;\n  intent = 'kb_match';\n} else if (budgetState === 'HARD_STOP') {\n  text = language === 'he'\n    ? 'הגעתי למגבלת השימוש היומית שלי. נסה שוב מאוחר יותר.'\n    : \"I've hit today's usage limit. Please try again later.\";\n  intent = 'budget_hard_stop';\n} else {\n  text = language === 'he'\n    ? 'עדיין אין לי משהו ספציפי על זה במאגר הידע שלי.'\n    : \"I don't have anything specific on that yet in my knowledge base.\";\n  intent = 'no_match';\n}\n\nreturn [{ json: { chat_id: chatId, text, agent_response: text, routed_model: 'none', input_tokens: 0, output_tokens: 0, cost_usd: 0, intent } }];\n"
+        "jsCode": "const chatId = $('Verify & Normalize').item.json.chat_id;\nconst language = $('Detect Language, Classify, Detect Sensitive Data').item.json.language;\nconst match = $('Pick Best Match').item.json;\nconst budgetState = $('Budget Guard').item.json.budget_state;\nconst parsedIntent = $('Parse Intent').item.json;\n\nlet text, intent;\nif (match.matched) {\n  text = language === 'he'\n    ? `מצאתי את זה: *${match.title}*\\n${match.summary_he}\\n${match.url}`\n    : `Here's what I found: *${match.title}*\\n${match.summary_en}\\n${match.url}`;\n  intent = 'kb_match_' + parsedIntent.intent;\n} else if (budgetState === 'HARD_STOP') {\n  text = language === 'he'\n    ? 'הגעתי למגבלת השימוש היומית שלי. נסה שוב מאוחר יותר.'\n    : \"I've hit today's usage limit. Please try again later.\";\n  intent = 'budget_hard_stop';\n} else {\n  text = language === 'he'\n    ? 'עדיין אין לי משהו ספציפי על זה במאגר הידע שלי.'\n    : \"I don't have anything specific on that yet in my knowledge base.\";\n  intent = 'no_match_' + parsedIntent.intent;\n}\n\n// retrieved_kb_ids/prompt_version_id/cache_hit/cached_input_tokens: part of the common leaf\n// shape all 4 leaves feeding \"Build Conversation Update\" must emit (see the \"why this shape\"\n// note on that node) - Insert interaction_logs (final) reads these only through Build\n// Conversation Update, never directly from Pick Best Match/Get System Prompt, since those\n// aren't valid ancestors on every leaf's path (e.g. a cache-hit item never runs either node).\nconst retrievedKbIds = JSON.stringify(match.matched ? [match.matched_id] : []);\nconst promptVersionId = $('Get System Prompt').item.json.id;\n\nreturn [{ json: { chat_id: chatId, text, agent_response: text, routed_model: 'none', input_tokens: 0, output_tokens: 0, cost_usd: 0, intent, retrieved_kb_ids: retrievedKbIds, prompt_version_id: promptVersionId, cache_hit: false, cached_input_tokens: null } }];\n"
       }
     },
     {
@@ -479,7 +691,7 @@
       "parameters": {
         "mode": "runOnceForAllItems",
         "language": "javaScript",
-        "jsCode": "const resp = $json;\nconst text = (resp.choices && resp.choices[0] && resp.choices[0].message && resp.choices[0].message.content) || '';\nconst inputTokens = (resp.usage && resp.usage.prompt_tokens) || 0;\nconst outputTokens = (resp.usage && resp.usage.completion_tokens) || 0;\n\nconst pricingRows = $('Get Model Pricing').all().map(i => i.json);\nconst pricing = pricingRows.find(r => r.model_name === 'gpt-5.4-nano') || {};\nconst inputPrice = Number(pricing.input_price_per_1m_tokens) || 0;\nconst outputPrice = Number(pricing.output_price_per_1m_tokens) || 0;\nconst costUsd = (inputTokens / 1e6) * inputPrice + (outputTokens / 1e6) * outputPrice;\n\n// mirrors security/sensitive-data-detection/*.ts - same list as the input-side check in\n// \"Detect Language, Classify, Detect Sensitive Data\" above, copied here for the output side\nconst PATTERNS = [\n  { id: 'openai-api-key', category: 'credential', regex: /\\bsk-\\s?[A-Za-z0-9]{20,}\\b/ },\n  { id: 'aws-access-key-id', category: 'credential', regex: /\\bAKIA[0-9A-Z]{16}\\b/ },\n  { id: 'google-api-key', category: 'credential', regex: /\\bAIza[0-9A-Za-z_-]{35}\\b/ },\n  { id: 'bearer-token', category: 'credential', regex: /\\bBearer\\s+[A-Za-z0-9._-]{20,}\\b/i },\n  { id: 'generic-secret-assignment', category: 'credential', regex: /\\b(api[_-]?key|secret|token|password|passwd|pwd)\\b\\s*[:=]\\s*['\"]?[^\\s'\"]{6,}['\"]?/i },\n  { id: 'private-key-block', category: 'credential', regex: /-----BEGIN\\s+(RSA|EC|OPENSSH|DSA)?\\s*PRIVATE KEY-----/ },\n  { id: 'email-address', category: 'personal_identifier', regex: /\\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}\\b/ },\n  { id: 'credit-card-like-number', category: 'personal_identifier', regex: /\\b(?:\\d[ -]?){13,19}\\b/ },\n  { id: 'private-ipv4', category: 'internal_network', regex: /\\b(?:10\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}|172\\.(?:1[6-9]|2\\d|3[01])\\.\\d{1,3}\\.\\d{1,3}|192\\.168\\.\\d{1,3}\\.\\d{1,3})\\b/ },\n];\nlet flagged = false;\nfor (const p of PATTERNS) { if (p.regex.test(text)) { flagged = true; break; } }\n\nconst language = $('Detect Language, Classify, Detect Sensitive Data').item.json.language;\nconst chatId = $('Verify & Normalize').item.json.chat_id;\n\nlet finalText = text, intent = 'generated_tier1';\nif (!text || flagged) {\n  intent = flagged ? 'output_blocked_sensitive_data' : 'generation_empty';\n  finalText = language === 'he'\n    ? 'מצטער, לא הצלחתי לייצר תשובה בטוחה כרגע. נסה לנסח את השאלה מחדש.'\n    : \"Sorry, I couldn't generate a safe response right now. Try rephrasing your question.\";\n}\n\nreturn [{ json: { chat_id: chatId, text: finalText, agent_response: finalText, routed_model: 'gpt-5.4-nano', input_tokens: inputTokens, output_tokens: outputTokens, cost_usd: costUsd, intent } }];\n"
+        "jsCode": "const resp = $json;\nconst text = (resp.choices && resp.choices[0] && resp.choices[0].message && resp.choices[0].message.content) || '';\nconst inputTokens = (resp.usage && resp.usage.prompt_tokens) || 0;\nconst outputTokens = (resp.usage && resp.usage.completion_tokens) || 0;\n\nconst pricingRows = $('Get Model Pricing').all().map(i => i.json);\nconst pricing = pricingRows.find(r => r.model_name === 'gpt-5.4-nano') || {};\nconst inputPrice = Number(pricing.input_price_per_1m_tokens) || 0;\nconst outputPrice = Number(pricing.output_price_per_1m_tokens) || 0;\nconst costUsd = (inputTokens / 1e6) * inputPrice + (outputTokens / 1e6) * outputPrice;\n\n// mirrors security/sensitive-data-detection/*.ts - same list as the input-side check in\n// \"Detect Language, Classify, Detect Sensitive Data\" above, copied here for the output side\nconst PATTERNS = [\n  { id: 'openai-api-key', category: 'credential', regex: /\\bsk-\\s?[A-Za-z0-9]{20,}\\b/ },\n  { id: 'aws-access-key-id', category: 'credential', regex: /\\bAKIA[0-9A-Z]{16}\\b/ },\n  { id: 'google-api-key', category: 'credential', regex: /\\bAIza[0-9A-Za-z_-]{35}\\b/ },\n  { id: 'bearer-token', category: 'credential', regex: /\\bBearer\\s+[A-Za-z0-9._-]{20,}\\b/i },\n  { id: 'generic-secret-assignment', category: 'credential', regex: /\\b(api[_-]?key|secret|token|password|passwd|pwd)\\b\\s*[:=]\\s*['\"]?[^\\s'\"]{6,}['\"]?/i },\n  { id: 'private-key-block', category: 'credential', regex: /-----BEGIN\\s+(RSA|EC|OPENSSH|DSA)?\\s*PRIVATE KEY-----/ },\n  { id: 'email-address', category: 'personal_identifier', regex: /\\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}\\b/ },\n  { id: 'credit-card-like-number', category: 'personal_identifier', regex: /\\b(?:\\d[ -]?){13,19}\\b/ },\n  { id: 'private-ipv4', category: 'internal_network', regex: /\\b(?:10\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}|172\\.(?:1[6-9]|2\\d|3[01])\\.\\d{1,3}\\.\\d{1,3}|192\\.168\\.\\d{1,3}\\.\\d{1,3})\\b/ },\n];\nlet flagged = false;\nfor (const p of PATTERNS) { if (p.regex.test(text)) { flagged = true; break; } }\n\nconst language = $('Detect Language, Classify, Detect Sensitive Data').item.json.language;\nconst chatId = $('Verify & Normalize').item.json.chat_id;\nconst parsedIntent = $('Parse Intent').item.json;\n\nlet finalText = text, intent = 'generated_tier1_' + parsedIntent.intent;\nif (!text || flagged) {\n  intent = flagged ? 'output_blocked_sensitive_data' : 'generation_empty';\n  finalText = language === 'he'\n    ? 'מצטער, לא הצלחתי לייצר תשובה בטוחה כרגע. נסה לנסח את השאלה מחדש.'\n    : \"Sorry, I couldn't generate a safe response right now. Try rephrasing your question.\";\n}\n\n// see the matching comment in \"Format Tier0 Response\" for why these four fields are computed\n// here rather than referenced later from Pick Best Match/Get System Prompt directly\nconst retrievedKbIds = JSON.stringify($('Pick Best Match').item.json.matched ? [$('Pick Best Match').item.json.matched_id] : []);\nconst promptVersionId = $('Get System Prompt').item.json.id;\n\nreturn [{ json: { chat_id: chatId, text: finalText, agent_response: finalText, routed_model: 'gpt-5.4-nano', input_tokens: inputTokens, output_tokens: outputTokens, cost_usd: costUsd, intent, retrieved_kb_ids: retrievedKbIds, prompt_version_id: promptVersionId, cache_hit: false, cached_input_tokens: null } }];\n"
       }
     },
     {
@@ -519,7 +731,7 @@
       "parameters": {
         "mode": "runOnceForAllItems",
         "language": "javaScript",
-        "jsCode": "const resp = $json;\n// claude-sonnet-5 returns extended-thinking content by default: content[0] is a 'thinking'\n// block (no .text field), the actual answer is the first 'text'-type block, not always at\n// a fixed index - find it explicitly rather than assuming content[0].\nconst textBlock = (resp.content || []).find(b => b.type === 'text');\nconst text = (textBlock && textBlock.text) || '';\nconst inputTokens = (resp.usage && resp.usage.input_tokens) || 0;\nconst outputTokens = (resp.usage && resp.usage.output_tokens) || 0;\n\nconst pricingRows = $('Get Model Pricing').all().map(i => i.json);\nconst pricing = pricingRows.find(r => r.model_name === 'claude-sonnet-5') || {};\nconst inputPrice = Number(pricing.input_price_per_1m_tokens) || 0;\nconst outputPrice = Number(pricing.output_price_per_1m_tokens) || 0;\nconst costUsd = (inputTokens / 1e6) * inputPrice + (outputTokens / 1e6) * outputPrice;\n\n// mirrors security/sensitive-data-detection/*.ts - same list as the input-side check in\n// \"Detect Language, Classify, Detect Sensitive Data\" above, copied here for the output side\nconst PATTERNS = [\n  { id: 'openai-api-key', category: 'credential', regex: /\\bsk-\\s?[A-Za-z0-9]{20,}\\b/ },\n  { id: 'aws-access-key-id', category: 'credential', regex: /\\bAKIA[0-9A-Z]{16}\\b/ },\n  { id: 'google-api-key', category: 'credential', regex: /\\bAIza[0-9A-Za-z_-]{35}\\b/ },\n  { id: 'bearer-token', category: 'credential', regex: /\\bBearer\\s+[A-Za-z0-9._-]{20,}\\b/i },\n  { id: 'generic-secret-assignment', category: 'credential', regex: /\\b(api[_-]?key|secret|token|password|passwd|pwd)\\b\\s*[:=]\\s*['\"]?[^\\s'\"]{6,}['\"]?/i },\n  { id: 'private-key-block', category: 'credential', regex: /-----BEGIN\\s+(RSA|EC|OPENSSH|DSA)?\\s*PRIVATE KEY-----/ },\n  { id: 'email-address', category: 'personal_identifier', regex: /\\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}\\b/ },\n  { id: 'credit-card-like-number', category: 'personal_identifier', regex: /\\b(?:\\d[ -]?){13,19}\\b/ },\n  { id: 'private-ipv4', category: 'internal_network', regex: /\\b(?:10\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}|172\\.(?:1[6-9]|2\\d|3[01])\\.\\d{1,3}\\.\\d{1,3}|192\\.168\\.\\d{1,3}\\.\\d{1,3})\\b/ },\n];\nlet flagged = false;\nfor (const p of PATTERNS) { if (p.regex.test(text)) { flagged = true; break; } }\n\nconst language = $('Detect Language, Classify, Detect Sensitive Data').item.json.language;\nconst chatId = $('Verify & Normalize').item.json.chat_id;\n\nlet finalText = text, intent = 'generated_tier2';\nif (!text || flagged) {\n  intent = flagged ? 'output_blocked_sensitive_data' : 'generation_empty';\n  finalText = language === 'he'\n    ? 'מצטער, לא הצלחתי לייצר תשובה בטוחה כרגע. נסה לנסח את השאלה מחדש.'\n    : \"Sorry, I couldn't generate a safe response right now. Try rephrasing your question.\";\n}\n\nreturn [{ json: { chat_id: chatId, text: finalText, agent_response: finalText, routed_model: 'claude-sonnet-5', input_tokens: inputTokens, output_tokens: outputTokens, cost_usd: costUsd, intent } }];\n"
+        "jsCode": "const resp = $json;\n// claude-sonnet-5 returns extended-thinking content by default: content[0] is a 'thinking'\n// block (no .text field), the actual answer is the first 'text'-type block, not always at\n// a fixed index - find it explicitly rather than assuming content[0].\nconst textBlock = (resp.content || []).find(b => b.type === 'text');\nconst text = (textBlock && textBlock.text) || '';\nconst inputTokens = (resp.usage && resp.usage.input_tokens) || 0;\nconst outputTokens = (resp.usage && resp.usage.output_tokens) || 0;\n\nconst pricingRows = $('Get Model Pricing').all().map(i => i.json);\nconst pricing = pricingRows.find(r => r.model_name === 'claude-sonnet-5') || {};\nconst inputPrice = Number(pricing.input_price_per_1m_tokens) || 0;\nconst outputPrice = Number(pricing.output_price_per_1m_tokens) || 0;\nconst costUsd = (inputTokens / 1e6) * inputPrice + (outputTokens / 1e6) * outputPrice;\n\n// mirrors security/sensitive-data-detection/*.ts - same list as the input-side check in\n// \"Detect Language, Classify, Detect Sensitive Data\" above, copied here for the output side\nconst PATTERNS = [\n  { id: 'openai-api-key', category: 'credential', regex: /\\bsk-\\s?[A-Za-z0-9]{20,}\\b/ },\n  { id: 'aws-access-key-id', category: 'credential', regex: /\\bAKIA[0-9A-Z]{16}\\b/ },\n  { id: 'google-api-key', category: 'credential', regex: /\\bAIza[0-9A-Za-z_-]{35}\\b/ },\n  { id: 'bearer-token', category: 'credential', regex: /\\bBearer\\s+[A-Za-z0-9._-]{20,}\\b/i },\n  { id: 'generic-secret-assignment', category: 'credential', regex: /\\b(api[_-]?key|secret|token|password|passwd|pwd)\\b\\s*[:=]\\s*['\"]?[^\\s'\"]{6,}['\"]?/i },\n  { id: 'private-key-block', category: 'credential', regex: /-----BEGIN\\s+(RSA|EC|OPENSSH|DSA)?\\s*PRIVATE KEY-----/ },\n  { id: 'email-address', category: 'personal_identifier', regex: /\\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}\\b/ },\n  { id: 'credit-card-like-number', category: 'personal_identifier', regex: /\\b(?:\\d[ -]?){13,19}\\b/ },\n  { id: 'private-ipv4', category: 'internal_network', regex: /\\b(?:10\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}|172\\.(?:1[6-9]|2\\d|3[01])\\.\\d{1,3}\\.\\d{1,3}|192\\.168\\.\\d{1,3}\\.\\d{1,3})\\b/ },\n];\nlet flagged = false;\nfor (const p of PATTERNS) { if (p.regex.test(text)) { flagged = true; break; } }\n\nconst language = $('Detect Language, Classify, Detect Sensitive Data').item.json.language;\nconst chatId = $('Verify & Normalize').item.json.chat_id;\nconst parsedIntent = $('Parse Intent').item.json;\n\nlet finalText = text, intent = 'generated_tier2_' + parsedIntent.intent;\nif (!text || flagged) {\n  intent = flagged ? 'output_blocked_sensitive_data' : 'generation_empty';\n  finalText = language === 'he'\n    ? 'מצטער, לא הצלחתי לייצר תשובה בטוחה כרגע. נסה לנסח את השאלה מחדש.'\n    : \"Sorry, I couldn't generate a safe response right now. Try rephrasing your question.\";\n}\n\n// see the matching comment in \"Format Tier0 Response\" for why these four fields are computed\n// here rather than referenced later from Pick Best Match/Get System Prompt directly\nconst retrievedKbIds = JSON.stringify($('Pick Best Match').item.json.matched ? [$('Pick Best Match').item.json.matched_id] : []);\nconst promptVersionId = $('Get System Prompt').item.json.id;\n\nreturn [{ json: { chat_id: chatId, text: finalText, agent_response: finalText, routed_model: 'claude-sonnet-5', input_tokens: inputTokens, output_tokens: outputTokens, cost_usd: costUsd, intent, retrieved_kb_ids: retrievedKbIds, prompt_version_id: promptVersionId, cache_hit: false, cached_input_tokens: null } }];\n"
       }
     },
     {
@@ -535,6 +747,57 @@
       }
     },
     {
+      "id": "code-determine-should-cache-1",
+      "name": "Determine Should Cache",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [5200, -160],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const intent = $json.intent;\nconst isRealGeneration = intent === 'generated_tier1' || intent === 'generated_tier2';\n// \"Check Cache Eligible\" ran upstream of every branch (tier0/tier1/tier2/cache-hit alike),\n// so it's a safe common ancestor here regardless of which leaf node actually produced $json.\nconst cacheEligible = $('Check Cache Eligible').item.json.cache_eligible;\nconst shouldCache = isRealGeneration && cacheEligible;\n\nreturn [{ json: { ...$json, should_cache: shouldCache } }];\n"
+      }
+    },
+    {
+      "id": "if-should-cache-1",
+      "name": "Should Cache?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [5320, -160],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.should_cache }}",
+              "rightValue": true,
+              "operator": { "type": "boolean", "operation": "equals" }
+            }
+          ],
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 2 }
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "pg-save-to-cache-1",
+      "name": "Save To Cache",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [5440, -280],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "INSERT INTO semantic_cache (\n  query_embedding, query_text, language, intent, response_text, routed_model,\n  input_tokens, output_tokens, cost_usd, retrieved_kb_ids, expires_at\n)\nVALUES ($1::vector, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, now() + interval '24 hours');",
+        "options": {
+          "queryReplacement": "={{ [ '[' + $('Embed Query').item.json.data[0].embedding.join(',') + ']', $('Verify & Normalize').item.json.text, $('Detect Language, Classify, Detect Sensitive Data').item.json.language, $('Build Conversation Update').item.json.intent, $('Build Conversation Update').item.json.agent_response, $('Build Conversation Update').item.json.routed_model, $('Build Conversation Update').item.json.input_tokens, $('Build Conversation Update').item.json.output_tokens, $('Build Conversation Update').item.json.cost_usd, $('Build Conversation Update').item.json.retrieved_kb_ids ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": { "id": "2ceb9b4a66d1d908", "name": "Postgres (bit_by_bit)" }
+      }
+    },
+    {
       "id": "pg-interaction-log-final-1",
       "name": "Insert interaction_logs (final)",
       "type": "n8n-nodes-base.postgres",
@@ -543,9 +806,9 @@
       "parameters": {
         "resource": "database",
         "operation": "executeQuery",
-        "query": "INSERT INTO interaction_logs (\n  platform_user_id, platform, user_query, agent_response, routed_model,\n  input_tokens, output_tokens, cost_usd, security_classification,\n  sensitive_data_flagged, intent, prompt_version_id, retrieved_kb_ids\n)\nVALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, false, $10, $11, $12::jsonb);",
+        "query": "INSERT INTO interaction_logs (\n  platform_user_id, platform, user_query, agent_response, routed_model,\n  input_tokens, output_tokens, cost_usd, security_classification,\n  sensitive_data_flagged, intent, prompt_version_id, retrieved_kb_ids,\n  cache_hit, cached_input_tokens\n)\nVALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, false, $10, $11, $12::jsonb, $13, $14);",
         "options": {
-          "queryReplacement": "={{ [ $('Verify & Normalize').item.json.platform_user_id, $('Verify & Normalize').item.json.platform, $('Verify & Normalize').item.json.text, $('Build Conversation Update').item.json.agent_response, $('Build Conversation Update').item.json.routed_model, $('Build Conversation Update').item.json.input_tokens, $('Build Conversation Update').item.json.output_tokens, $('Build Conversation Update').item.json.cost_usd, $('Detect Language, Classify, Detect Sensitive Data').item.json.classification, $('Build Conversation Update').item.json.intent, $('Get System Prompt').item.json.id, JSON.stringify($('Pick Best Match').item.json.matched ? [$('Pick Best Match').item.json.matched_id] : []) ] }}"
+          "queryReplacement": "={{ [ $('Verify & Normalize').item.json.platform_user_id, $('Verify & Normalize').item.json.platform, $('Verify & Normalize').item.json.text, $('Build Conversation Update').item.json.agent_response, $('Build Conversation Update').item.json.routed_model, $('Build Conversation Update').item.json.input_tokens, $('Build Conversation Update').item.json.output_tokens, $('Build Conversation Update').item.json.cost_usd, $('Detect Language, Classify, Detect Sensitive Data').item.json.classification, $('Build Conversation Update').item.json.intent, $('Build Conversation Update').item.json.prompt_version_id, $('Build Conversation Update').item.json.retrieved_kb_ids, $('Build Conversation Update').item.json.cache_hit, $('Build Conversation Update').item.json.cached_input_tokens ] }}"
         }
       },
       "credentials": {
@@ -580,7 +843,7 @@
       "parameters": {
         "mode": "runOnceForAllItems",
         "language": "javaScript",
-        "jsCode": "return [{ json: {\n  chat_id: $('Build Conversation Update').item.json.chat_id,\n  text: $('Build Conversation Update').item.json.text,\n} }];\n"
+        "jsCode": "const language = $('Detect Language, Classify, Detect Sensitive Data').item.json.language;\nlet text = $('Build Conversation Update').item.json.text;\n\n// Telegram (like most bidi-aware renderers) picks a paragraph's overall direction from its\n// first strong-direction character. The system prompt asks the model to open Hebrew replies\n// with a Hebrew word, but that's not reliably followed (verified live - a model will still\n// open with an English product name like \"Claude Code\" when defining it). Prepending an\n// invisible Right-to-Left Mark (U+200F) forces correct RTL alignment deterministically,\n// regardless of what the model actually generates - a rendering problem solved in code\n// instead of left to prompt compliance.\nif (language === 'he') {\n  text = '\\u200F' + text;\n}\n\nreturn [{ json: {\n  chat_id: $('Build Conversation Update').item.json.chat_id,\n  text,\n} }];\n"
       }
     },
     {
@@ -702,9 +965,27 @@
     },
     "Is New?": {
       "main": [
-        [{ "node": "Detect Language, Classify, Detect Sensitive Data", "type": "main", "index": 0 }],
+        [{ "node": "Check Rate Limit", "type": "main", "index": 0 }],
         [{ "node": "Respond Duplicate", "type": "main", "index": 0 }]
       ]
+    },
+    "Check Rate Limit": {
+      "main": [[{ "node": "Parse Rate Limit Count", "type": "main", "index": 0 }]]
+    },
+    "Parse Rate Limit Count": {
+      "main": [[{ "node": "Over Rate Limit?", "type": "main", "index": 0 }]]
+    },
+    "Over Rate Limit?": {
+      "main": [
+        [{ "node": "Insert interaction_logs (rate limited)", "type": "main", "index": 0 }],
+        [{ "node": "Detect Language, Classify, Detect Sensitive Data", "type": "main", "index": 0 }]
+      ]
+    },
+    "Insert interaction_logs (rate limited)": {
+      "main": [[{ "node": "Send Rate Limited Reply", "type": "main", "index": 0 }]]
+    },
+    "Send Rate Limited Reply": {
+      "main": [[{ "node": "Respond Rate Limited", "type": "main", "index": 0 }]]
     },
     "Detect Language, Classify, Detect Sensitive Data": {
       "main": [[{ "node": "Upsert User", "type": "main", "index": 0 }]]
@@ -732,20 +1013,44 @@
     },
     "Classification Is PUBLIC?": {
       "main": [
-        [{ "node": "Embed Query", "type": "main", "index": 0 }],
+        [{ "node": "Load Conversation History", "type": "main", "index": 0 }],
         [{ "node": "Insert interaction_logs (classification blocked)", "type": "main", "index": 0 }]
       ]
     },
+    "Load Conversation History": {
+      "main": [[{ "node": "Check Cache Eligible", "type": "main", "index": 0 }]]
+    },
+    "Check Cache Eligible": {
+      "main": [[{ "node": "Embed Query", "type": "main", "index": 0 }]]
+    },
     "Embed Query": {
+      "main": [[{ "node": "Search Semantic Cache", "type": "main", "index": 0 }]]
+    },
+    "Search Semantic Cache": {
+      "main": [[{ "node": "Cache Hit?", "type": "main", "index": 0 }]]
+    },
+    "Cache Hit?": {
+      "main": [
+        [
+          { "node": "Format Cached Response", "type": "main", "index": 0 },
+          { "node": "Update Cache Hit Count", "type": "main", "index": 0 }
+        ],
+        [{ "node": "Classify Intent", "type": "main", "index": 0 }]
+      ]
+    },
+    "Format Cached Response": {
+      "main": [[{ "node": "Build Conversation Update", "type": "main", "index": 0 }]]
+    },
+    "Classify Intent": {
+      "main": [[{ "node": "Parse Intent", "type": "main", "index": 0 }]]
+    },
+    "Parse Intent": {
       "main": [[{ "node": "Search Knowledge Base", "type": "main", "index": 0 }]]
     },
     "Search Knowledge Base": {
       "main": [[{ "node": "Pick Best Match", "type": "main", "index": 0 }]]
     },
     "Pick Best Match": {
-      "main": [[{ "node": "Load Conversation History", "type": "main", "index": 0 }]]
-    },
-    "Load Conversation History": {
       "main": [[{ "node": "Get System Prompt", "type": "main", "index": 0 }]]
     },
     "Get System Prompt": {
@@ -794,6 +1099,18 @@
       "main": [[{ "node": "Build Conversation Update", "type": "main", "index": 0 }]]
     },
     "Build Conversation Update": {
+      "main": [[{ "node": "Determine Should Cache", "type": "main", "index": 0 }]]
+    },
+    "Determine Should Cache": {
+      "main": [[{ "node": "Should Cache?", "type": "main", "index": 0 }]]
+    },
+    "Should Cache?": {
+      "main": [
+        [{ "node": "Save To Cache", "type": "main", "index": 0 }],
+        [{ "node": "Insert interaction_logs (final)", "type": "main", "index": 0 }]
+      ]
+    },
+    "Save To Cache": {
       "main": [[{ "node": "Insert interaction_logs (final)", "type": "main", "index": 0 }]]
     },
     "Insert interaction_logs (final)": {
