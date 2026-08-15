@@ -27,19 +27,29 @@ router - see "Phase 4 Agent Core design notes" below for all of these. `interact
 writes begin at Phase 4 generally; `retrieved_kb_ids`/`intent` from the RAG/generation work;
 `routed_model`/tokens/`cost_usd`/`cache_hit`/`cached_input_tokens` all populated now.
 
-**Not yet started:** Phase 5 "Prompt System" (only a Base persona prompt exists in
-`database/seed/system-prompt.sql`; Router/Evaluator/Digest/Security/Sensitive-Data-Detection
-prompts, versioned in `system_prompts`, don't exist yet). Phase 6 "LDD" (telemetry, feedback,
-evaluator, golden-question evaluation, human approval, rollback - the project's actual
-self-improving core; `interaction_logs.feedback_score`/`needs_review` sit unused). Phase 7
-"Weekly Community Automation" (digest/knowledge-gap report/cost report/admin alerts). Hosting
-migration (not a numbered spec phase, but an explicit hard prerequisite before Phase 8 Pilot)
-is deliberately still deferred, not forgotten - staying local. Phase 8 Pilot and Phase 9
-Expansion correctly not started, since they depend on everything above.
+**Phase 5 "Prompt System" is now complete**: Base (persona), Router, Evaluator, Digest, and
+Security prompts all exist, versioned in `system_prompts` with a `prompt_type` discriminator
+column (see "Phase 5 Prompt System design notes" below). Router and Security are wired into
+live runtime use; Evaluator and Digest are stored/versioned only, with no consumer yet - they
+feed Phase 6 and Phase 7 respectively. Sensitive-Data Detection deliberately stayed as
+code-based rules (`security/sensitive-data-detection/patterns.ts`), not a `system_prompts`
+row, per ADR-0003/ADR-0004's explicit exclusion from the automated prompt pipeline.
 
-A candidate next step (not yet planned): Telegram inline-keyboard buttons for tap-to-select
-clarifying answers - needs its own plan (model must emit structured suggested replies, plus new
-webhook handling for `callback_query` events, which the current workflow doesn't handle).
+**Not yet started:** Phase 6 "LDD" (telemetry, feedback, evaluator loop, golden-question
+evaluation, human approval, rollback - the project's actual self-improving core;
+`interaction_logs.feedback_score`/`needs_review` sit unused; the Evaluator Prompt is seeded and
+waiting). Phase 7 "Weekly Community Automation" (digest/knowledge-gap report/cost report/admin
+alerts; the Digest Prompt is seeded and waiting). Hosting migration (not a numbered spec phase,
+but an explicit hard prerequisite before Phase 8 Pilot) is deliberately still deferred, not
+forgotten - staying local. Phase 8 Pilot and Phase 9 Expansion correctly not started, since
+they depend on everything above.
+
+Two candidate next steps, neither planned yet: Telegram inline-keyboard buttons for
+tap-to-select clarifying answers (model must emit structured suggested replies, plus new
+webhook handling for `callback_query` events); and Adi's stated intent to make WhatsApp the
+sole community-facing channel eventually, not Telegram, with a "should the bot even respond"
+gate for group dynamics (weekly shared content, casual conversation) - see this session's
+memory for the WhatsApp direction, not yet reflected in PROJECT-SPEC.md/this file.
 **Update this section whenever a phase completes** - don't let it go stale.
 
 ### Phase 4 Agent Core design notes
@@ -113,6 +123,39 @@ webhook handling for `callback_query` events, which the current workflow doesn't
   and re-register it with Telegram's `setWebhook` (needs the bot token from `.env`, so this is
   a step for the user, not something to automate blindly with a token neither you nor an
   agent should read).
+
+### Phase 5 Prompt System design notes
+
+- **`system_prompts.prompt_type` discriminates the five prompt kinds** (base/router/evaluator/
+  digest/security), each independently active via a per-type partial unique index
+  (`idx_system_prompts_one_active_per_type`) - this replaced the original global "only one
+  prompt active at all" constraint. **Every query against `system_prompts` must filter on
+  `prompt_type`, with no exceptions** - a real production bug happened here: `Get System
+  Prompt` (fetches the Base persona) kept its pre-Phase-5 query, `WHERE is_active = true` with
+  no `prompt_type` filter and no `ORDER BY`, so once five types were simultaneously active it
+  non-deterministically returned whichever row Postgres picked first - in practice, the Router
+  prompt - and real users got raw router-classification JSON echoed back as the "answer".
+  Caught via live Telegram testing, not automated tests (no test asserted persona *identity*,
+  only that a prompt existed). Fixed, and a regression test now asserts a real generation's
+  `prompt_version_id` matches the active base-type row specifically.
+- **A bad response can outlive the fix that prevents new ones, via the semantic cache.** The
+  broken router-JSON response from the bug above got written to `semantic_cache` before the
+  fix landed; retesting the same query kept returning the broken answer until that specific
+  cache row was manually deleted, even though the underlying bug was already fixed. When
+  debugging a response that looks stale/wrong after a fix, check `semantic_cache` for a
+  poisoned row with the same `query_text` before assuming the fix didn't work.
+- **Security Prompt is advisory only, on purpose.** It runs a real LLM call and logs a
+  PUBLIC/INTERNAL/SENSITIVE/CLASSIFIED signal to `interaction_logs.security_signal` (deliberately
+  a separate column from the authoritative `security_classification`), but does not gate
+  anything - `security/classification/classify.ts`'s always-PUBLIC stub is unchanged. This was
+  an explicit, conservative choice for a security-critical path in a defense-sector-adjacent
+  project; don't wire this signal to gate behavior without a fresh explicit decision once real
+  classification data has been reviewed.
+- **Evaluator and Digest prompts have no consumer yet, on purpose.** They're stored and
+  versioned (satisfying Phase 5's literal scope) but nothing invokes them - Phase 6 (LDD) builds
+  the nightly evaluator loop, Phase 7 (Weekly Community Automation) builds the digest job. Don't
+  be surprised these prompts exist with no code path that calls them; that's the intended state
+  until those phases land.
 
 ## How we work (established this session - follow it, don't re-derive it)
 
