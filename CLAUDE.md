@@ -95,6 +95,24 @@ webhook handling for `callback_query` events, which the current workflow doesn't
   (a broken reference only throws for the specific branch it's on).
 - **Style rule, enforced both in the bot's persona and in this codebase itself:** never use an
   em-dash (`—`); use a regular hyphen, comma, period, or shorter sentences.
+- **Hebrew replies get an invisible RTL mark prepended in code, not left to prompt compliance.**
+  Telegram picks a paragraph's direction from its first strong-direction character, so a Hebrew
+  reply that opens with an English term (e.g. "Claude Code") renders misaligned. Verified live
+  that asking the model to open with a Hebrew word isn't reliable even with an explicit example
+  in the prompt - `Prepare Telegram Send` now prepends U+200F (RLM) to any Hebrew response
+  deterministically, regardless of what the model actually generates. The prompt rule stays too
+  (still nudges more natural phrasing) but is not the mechanism the fix depends on.
+- **The public Telegram webhook depends on an external tunnel this repo doesn't manage or
+  start** (`cloudflared tunnel --url http://localhost:5678`, run manually, logs to
+  `/private/tmp/cloudflared.log`). `verify-all.sh`/`n8n/tests/run.sh` only ever hit
+  `localhost:5678` directly, so a dead tunnel is invisible to them by design - "all checks
+  passed" only ever claims the workflow logic is correct, not that Telegram can currently reach
+  it. `./scripts/dev-status.sh` now checks the public `WEBHOOK_URL` for exactly this (added
+  2026-08-15 after a stuck quick-tunnel silently stopped routing for hours). Quick tunnels get
+  a new random hostname on every restart - after restarting one, update `.env`'s `WEBHOOK_URL`
+  and re-register it with Telegram's `setWebhook` (needs the bot token from `.env`, so this is
+  a step for the user, not something to automate blindly with a token neither you nor an
+  agent should read).
 
 ## How we work (established this session - follow it, don't re-derive it)
 

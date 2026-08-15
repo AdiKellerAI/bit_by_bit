@@ -843,7 +843,7 @@
       "parameters": {
         "mode": "runOnceForAllItems",
         "language": "javaScript",
-        "jsCode": "return [{ json: {\n  chat_id: $('Build Conversation Update').item.json.chat_id,\n  text: $('Build Conversation Update').item.json.text,\n} }];\n"
+        "jsCode": "const language = $('Detect Language, Classify, Detect Sensitive Data').item.json.language;\nlet text = $('Build Conversation Update').item.json.text;\n\n// Telegram (like most bidi-aware renderers) picks a paragraph's overall direction from its\n// first strong-direction character. The system prompt asks the model to open Hebrew replies\n// with a Hebrew word, but that's not reliably followed (verified live - a model will still\n// open with an English product name like \"Claude Code\" when defining it). Prepending an\n// invisible Right-to-Left Mark (U+200F) forces correct RTL alignment deterministically,\n// regardless of what the model actually generates - a rendering problem solved in code\n// instead of left to prompt compliance.\nif (language === 'he') {\n  text = '\\u200F' + text;\n}\n\nreturn [{ json: {\n  chat_id: $('Build Conversation Update').item.json.chat_id,\n  text,\n} }];\n"
       }
     },
     {
