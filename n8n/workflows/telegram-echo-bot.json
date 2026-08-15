@@ -629,7 +629,7 @@
       "parameters": {
         "resource": "database",
         "operation": "executeQuery",
-        "query": "SELECT id, prompt_text FROM system_prompts WHERE is_active = true\nUNION ALL\nSELECT NULL, 'You are a helpful assistant for an AI/dev community.'\nWHERE NOT EXISTS (SELECT 1 FROM system_prompts WHERE is_active = true)\nLIMIT 1;",
+        "query": "SELECT id, prompt_text FROM system_prompts WHERE prompt_type = 'base' AND is_active = true\nUNION ALL\nSELECT NULL, 'You are a helpful assistant for an AI/dev community.'\nWHERE NOT EXISTS (SELECT 1 FROM system_prompts WHERE prompt_type = 'base' AND is_active = true)\nLIMIT 1;",
         "options": {}
       },
       "credentials": {

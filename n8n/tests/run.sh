@@ -238,6 +238,30 @@ else
 fi
 psql_exec -c "DELETE FROM semantic_cache WHERE query_text = '$CACHE_SIGNAL_TEXT';" >/dev/null
 
+# Phase 5: Get System Prompt must fetch the BASE persona, never any other prompt_type. Found a
+# real bug this way: after the prompt_type migration, Get System Prompt's query still filtered
+# only on is_active=true with no prompt_type filter and no ORDER BY - with five prompt types
+# now simultaneously active, it non-deterministically returned whichever one Postgres happened
+# to pick first (in practice, the Router prompt), so real user messages got the raw router
+# classification JSON echoed back as the "answer" instead of a real generated response. Assert
+# prompt_version_id on a real generation actually points at the active BASE-type row.
+BASE_PROMPT_ID=$(psql_exec -tAc "SELECT id FROM system_prompts WHERE prompt_type = 'base' AND is_active = true" | tr -d '[:space:]')
+BASE_CHECK_UPDATE_ID="43$(date +%s)"
+BASE_CHECK_USER_ID="44$(date +%s)"
+curl -s -o /dev/null -X POST "$URL" \
+  -H "Content-Type: application/json" \
+  -H "X-Telegram-Bot-Api-Secret-Token: $SECRET" \
+  -d "{\"update_id\": $BASE_CHECK_UPDATE_ID, \"message\": {\"message_id\": 1, \"from\": {\"id\": $BASE_CHECK_USER_ID}, \"chat\": {\"id\": $BASE_CHECK_USER_ID, \"type\": \"private\"}, \"date\": 1735689600, \"text\": \"What does a good commit message look like\"}}"
+sleep 4
+used_prompt_id=$(psql_exec -tAc "SELECT prompt_version_id::text FROM interaction_logs WHERE platform_user_id = '$BASE_CHECK_USER_ID'" | tr -d '[:space:]')
+if [ -n "$BASE_PROMPT_ID" ] && [ "$used_prompt_id" = "$BASE_PROMPT_ID" ]; then
+  echo "[x] a real generation uses the active Base persona prompt, not any other prompt_type"
+else
+  echo "[ ] a real generation uses the active Base persona prompt (expected: $BASE_PROMPT_ID, got: $used_prompt_id)"
+  fail=1
+fi
+psql_exec -c "DELETE FROM semantic_cache WHERE query_text = 'What does a good commit message look like';" >/dev/null
+
 # Phase 7: rate limit. Fire 12 rapid requests (no sleep between) for one user - the Check
 # Rate Limit node allows 10 per 60s window, so the 11th/12th should be throttled. Reuses a
 # KB-matching query (see the RAG-match test above) so the allowed 10 cost only a cheap
@@ -315,10 +339,10 @@ fi
 # cache in the first place (see "Determine Should Cache"), so they don't need listing here.
 psql_exec -c "DELETE FROM semantic_cache WHERE query_text IN ('verify-all test', 'What is RAG?', 'best pizza recipe', 'What''s a quick way to reverse a string in Python?', 'Please explain in detail how a hash table works internally and compare it to a binary search tree for lookup performance.', 'hi');" >/dev/null
 
-psql_exec -c "DELETE FROM webhook_events WHERE platform_message_id IN ('$TEST_UPDATE_ID', '$SENSITIVE_UPDATE_ID', '$CLEAN_UPDATE_ID', '$RAG_MATCH_UPDATE_ID', '$RAG_NOMATCH_UPDATE_ID', '$TIER1_UPDATE_ID', '$TIER2_UPDATE_ID', '$GREETING_UPDATE_ID', '$CACHE_UPDATE_ID', '$CACHE_UPDATE_ID2') OR platform_message_id LIKE '${RATE_LIMIT_PREFIX}%';" >/dev/null
+psql_exec -c "DELETE FROM webhook_events WHERE platform_message_id IN ('$TEST_UPDATE_ID', '$SENSITIVE_UPDATE_ID', '$CLEAN_UPDATE_ID', '$RAG_MATCH_UPDATE_ID', '$RAG_NOMATCH_UPDATE_ID', '$TIER1_UPDATE_ID', '$TIER2_UPDATE_ID', '$GREETING_UPDATE_ID', '$CACHE_UPDATE_ID', '$CACHE_UPDATE_ID2', '$BASE_CHECK_UPDATE_ID') OR platform_message_id LIKE '${RATE_LIMIT_PREFIX}%';" >/dev/null
 psql_exec -c "DELETE FROM sensitive_data_events WHERE platform_user_id = '$SENSITIVE_USER_ID';" >/dev/null
-psql_exec -c "DELETE FROM interaction_logs WHERE platform_user_id IN ('$TEST_USER_ID', '$SENSITIVE_USER_ID', '$CLEAN_USER_ID', '$RAG_MATCH_USER_ID', '$RAG_NOMATCH_USER_ID', '$TIER1_USER_ID', '$TIER2_USER_ID', '$RATE_LIMIT_USER_ID', '$GREETING_USER_ID', '$CACHE_USER_ID', '$CACHE_USER_ID2');" >/dev/null
-psql_exec -c "DELETE FROM users WHERE platform_user_id IN ('$TEST_USER_ID', '$SENSITIVE_USER_ID', '$CLEAN_USER_ID', '$RAG_MATCH_USER_ID', '$RAG_NOMATCH_USER_ID', '$TIER1_USER_ID', '$TIER2_USER_ID', '$RATE_LIMIT_USER_ID', '$GREETING_USER_ID', '$CACHE_USER_ID', '$CACHE_USER_ID2');" >/dev/null
+psql_exec -c "DELETE FROM interaction_logs WHERE platform_user_id IN ('$TEST_USER_ID', '$SENSITIVE_USER_ID', '$CLEAN_USER_ID', '$RAG_MATCH_USER_ID', '$RAG_NOMATCH_USER_ID', '$TIER1_USER_ID', '$TIER2_USER_ID', '$RATE_LIMIT_USER_ID', '$GREETING_USER_ID', '$CACHE_USER_ID', '$CACHE_USER_ID2', '$BASE_CHECK_USER_ID');" >/dev/null
+psql_exec -c "DELETE FROM users WHERE platform_user_id IN ('$TEST_USER_ID', '$SENSITIVE_USER_ID', '$CLEAN_USER_ID', '$RAG_MATCH_USER_ID', '$RAG_NOMATCH_USER_ID', '$TIER1_USER_ID', '$TIER2_USER_ID', '$RATE_LIMIT_USER_ID', '$GREETING_USER_ID', '$CACHE_USER_ID', '$CACHE_USER_ID2', '$BASE_CHECK_USER_ID');" >/dev/null
 
 if [ "$fail" -eq 0 ]; then
   echo "All n8n Telegram workflow tests passed."
