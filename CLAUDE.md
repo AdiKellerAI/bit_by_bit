@@ -40,20 +40,29 @@ row, per ADR-0003/ADR-0004's explicit exclusion from the automated prompt pipeli
 latency, cache hit, intent, language, RAG docs, feedback, security classification,
 sensitive-data flag, prompt version, platform), and the required `feedback 1`/`feedback 0`
 command path actually writes to `feedback_score`/`needs_review` - see "Phase 6 LDD sub-phase 1
-design notes" below. **Not yet started:** the rest of Phase 6 - Loop 3 "Meta-Learning" (§11):
-nightly evaluator loop, golden-question evaluation, human approval, rollback. This is the
-project's actual self-improving core and is explicitly agent-driven end to end except for the
-final human-approval gate (ADR-0004). The golden evaluation set (`database/seed/golden-eval-cases.sql`,
-22 cases across 15 of ARCHITECTURE-FLOWS.md §16's 16 categories) is now seeded, unblocking the
-Golden Evaluation step - category 11 "Security refusal" is still deliberately excluded, since
+design notes" below. **Phase 6 sub-phase 2 (Loop 3 "Meta-Learning" §11, evaluator + golden-eval
+scoring half) is now also complete**: `n8n/workflows/nightly-evaluator.json` (Schedule Trigger,
+nightly 03:00) selects flagged interactions, calls the Evaluator, synthesizes a full candidate
+prompt, runs it against all 22 golden-eval cases, LLM-judges each answer, and stores a scored
+row in `prompt_change_proposals` (auto-`rejected` below a 90% pass threshold or on any critical
+sensitive-data-case failure, else `pending`) - see "Phase 6 LDD sub-phase 2 design notes" below.
+**Not yet started:** admin commands (`/pending`, `/approve`, `/reject`, `/rollback`, `/prompts`)
+that actually act on those `pending` rows - there was nothing real to act on before this
+sub-phase existed, so this is explicitly next. The golden evaluation set
+(`database/seed/golden-eval-cases.sql`, 22 cases across 15 of ARCHITECTURE-FLOWS.md §16's 16
+categories) is seeded - category 11 "Security refusal" is still deliberately excluded, since
 `security/classification/classify.ts` remains a PUBLIC-only stub with no real refusal logic to
-test yet. The evaluator loop mechanics themselves (nightly cron, candidate storage,
-`/approve`/`/reject`/`/rollback`) are still not built. The Evaluator Prompt is seeded and
-waiting. Phase 7 "Weekly Community Automation" (digest/knowledge-gap report/cost report/admin
+test yet. The Evaluator Prompt is seeded and now has a real consumer. Phase 7 "Weekly Community
+Automation" (digest/knowledge-gap report/cost report/admin
 alerts; the Digest Prompt is seeded and waiting) not started. Hosting migration (not a numbered
 spec phase, but an explicit hard prerequisite before Phase 8 Pilot) is deliberately still
-deferred, not forgotten - staying local. Phase 8 Pilot and Phase 9 Expansion correctly not
-started, since they depend on everything above.
+deferred, not forgotten - staying local. **This gap is sharper now than before the nightly
+evaluator existed**: a request/response Telegram bot only fails to respond while the laptop is
+down; a Schedule Trigger workflow simply never fires nightly at all unless Colima +
+`docker compose` happen to be up at 03:00 - flagged directly to Adi (2026-08-15), who chose to
+keep building sub-phases locally and treat hosting as a separate, later decision rather than
+solving it now. Phase 8 Pilot and Phase 9 Expansion correctly not started, since they depend on
+everything above.
 
 Two candidate next steps, neither planned yet: Telegram inline-keyboard buttons for
 tap-to-select clarifying answers (model must emit structured suggested replies, plus new
@@ -209,6 +218,62 @@ memory for the WhatsApp direction, not yet reflected in PROJECT-SPEC.md/this fil
   `feedback 0`) is the one piece the spec actually mandates for MVP completeness. n8n's Telegram
   integration does support inline-keyboard `callback_query` handling for a tap-to-react UI later
   (confirmed available, unused today) - a larger, separate feature, not in scope here.
+
+### Phase 6 LDD sub-phase 2 design notes (Evaluator + Golden Evaluation, §11)
+
+- **A separate workflow file, not a branch inside `telegram-echo-bot.json`.**
+  `n8n/workflows/nightly-evaluator.json` has its own Schedule Trigger (cron `0 3 * * *`) - a
+  fundamentally different trigger type from the webhook bot, but the same running `n8n`
+  container/docker-compose service. Also carries a parallel `n8n-nodes-base.manualTrigger` node
+  feeding the same first real step, purely for testability (see the CLI note below) - production
+  scheduling is unaffected by its presence.
+- **Manually executing a Schedule-Trigger workflow needs two non-obvious fixes, both confirmed
+  by reading n8n's own source in-container.** (1) `n8n execute --id=<id>` requires a node type
+  from `STARTING_NODES` (`n8n-nodes-base.manualTrigger` or the langchain manual-chat variant) or
+  an `executeWorkflowTrigger` node - a bare Schedule Trigger alone throws "Missing node to start
+  execution", hence the parallel Manual Trigger node above. (2) Running `n8n execute` in the same
+  container as the live main process conflicts on the Task Broker's default port 5679 - fixed
+  with `-e N8N_RUNNERS_BROKER_PORT=5680` on the one-off `docker compose exec` call (confirmed via
+  `@n8n/config`'s `runners.config.js`), not by stopping/restarting the main process.
+- **Tiered model selection, not "always the expensive model" - a real cost correction made
+  during planning, not an afterthought.** The Evaluator and Synthesize-Candidate-Prompt calls
+  (real reasoning/writing work - diagnosing *why* something failed, writing new prompt text) use
+  `claude-sonnet-5`; the 22 Golden Eval candidate-answer calls and the batched judge call use
+  `gpt-5.4-nano` (same model most real production traffic already uses; judging pass/fail
+  against a written `expected_behavior` doesn't need the priciest model). First real run's actual
+  cost: $0.0398 - in line with the ~$0.03-0.05/run estimate, confirming the tiering works as
+  intended rather than being a guess that happened to sound right.
+- **The Evaluator's `proposed_prompt_change` is a change description, not a full prompt - a
+  synthesis step bridges that gap.** The Evaluator Prompt's fixed JSON contract (seeded in Phase
+  5, unchanged here) only ever returns a *description* of what to change ("the specific text
+  change to the Base Prompt"). `prompt_change_proposals.proposed_prompt` needs the complete
+  candidate text to actually run Golden Evaluation against, so a dedicated `Synthesize Candidate
+  Prompt` call (current base prompt + the change description in, complete new prompt text out)
+  produces it. Verified on a real run: the synthesized text is coherent, real Hebrew persona
+  copy correctly starting from the actual active Base Prompt, not a fragment.
+- **Judged in one batched call across all 22 cases, not 22 separate judge calls** - keeps total
+  LLM calls per run at ~25 instead of ~45, and the judge system prompt is a plain string
+  hardcoded in the node, not a `system_prompts` row (it's an internal scoring tool, not a
+  user/community-facing persona, so it doesn't belong in the prompt-versioning system).
+- **Auto-reject threshold: pass rate < 90%, OR any `sensitive_data` critical-severity case
+  fails on its own regardless of overall score.** Confirmed with Adi - a secret-leak-handling
+  regression should hard-block even if the other 21 cases look fine; a flat percentage alone
+  would let that slip through if enough easy cases compensate.
+- **Evaluation cost is tracked (`prompt_change_proposals.evaluation_cost_usd`, computed from
+  real `model_registry` pricing, same pattern as `Get Model Pricing`/`Validate Tier 2 Output`)
+  but deliberately does NOT gate on `budget_policy`.** That budget governs user-facing traffic;
+  this is an internal admin process, confirmed as a distinct decision with Adi.
+- **§11's input signal list is only partially instrumented, and this sub-phase does not fake
+  the rest.** Of the five listed signals (👎, repeated questions, flagged responses, security
+  false positives, low-confidence RAG results), only `feedback_score = 0` and `needs_review =
+  true` are real, queryable columns today - `interaction_logs` has no repeat-question tracking,
+  no human-confirmed-false-positive mechanism for `security_signal`, and no persisted RAG
+  similarity/distance score (only `retrieved_kb_ids`, matched-or-not). `Select Flagged
+  Interactions` uses only the two real signals; the other three remain a documented gap for a
+  future refinement.
+- **This sub-phase produces `pending`/`rejected` rows but nothing acts on `pending` ones yet.**
+  `/approve`/`/reject`/`/rollback`/`/pending`/`/prompts` (§16) are explicitly the next piece,
+  not built here - there was nothing real to approve before real scored proposals existed.
 
 ## How we work (established this session - follow it, don't re-derive it)
 

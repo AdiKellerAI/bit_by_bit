@@ -185,7 +185,9 @@ CREATE TABLE public.prompt_change_proposals (
     evaluation_score numeric,
     status text DEFAULT 'pending'::text NOT NULL,
     approved_by text,
-    created_at timestamp with time zone DEFAULT now() NOT NULL
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    evaluation_cost_usd numeric,
+    CONSTRAINT prompt_change_proposals_status_check CHECK ((status = ANY (ARRAY['pending'::text, 'approved'::text, 'rejected'::text])))
 );
 
 
@@ -580,4 +582,5 @@ INSERT INTO public.schema_migrations (version) VALUES
     ('20260815120000'),
     ('20260815140000'),
     ('20260815140001'),
-    ('20260815160000');
+    ('20260815160000'),
+    ('20260815201924');

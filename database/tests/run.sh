@@ -56,6 +56,13 @@ else
   echo "[x] interaction_logs rejects an out-of-range feedback_score"
 fi
 
+if run_sql_file "$(dirname "$0")/06_prompt_change_proposals_status_check.sql" >/tmp/dbtest_06.log 2>&1; then
+  echo "[ ] prompt_change_proposals rejects an invalid status (insert unexpectedly succeeded)"
+  fail=1
+else
+  echo "[x] prompt_change_proposals rejects an invalid status"
+fi
+
 if [ "$fail" -eq 0 ]; then
   echo "All database tests passed."
 else
