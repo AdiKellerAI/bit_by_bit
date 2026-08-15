@@ -246,6 +246,15 @@ else
   fail=1
 fi
 
+# Phase 7: every test message above that reaches real generation (not KB-matched, not
+# early-blocked) is now legitimately written to the semantic cache (Phase 7 gap 2/3). Without
+# cleanup, re-running this suite within the cache's 24h freshness window would hit the cache
+# instead of generating fresh (e.g. intent comes back 'generated_tier1_cached'). Clean up every
+# such query text so each run starts from a real cache miss, same as every other test's data
+# cleanup below. KB-matched messages (e.g. the LangTalks queries) are never written to the
+# cache in the first place (see "Determine Should Cache"), so they don't need listing here.
+psql_exec -c "DELETE FROM semantic_cache WHERE query_text IN ('verify-all test', 'What is RAG?', 'best pizza recipe', 'What''s a quick way to reverse a string in Python?', 'Please explain in detail how a hash table works internally and compare it to a binary search tree for lookup performance.');" >/dev/null
+
 psql_exec -c "DELETE FROM webhook_events WHERE platform_message_id IN ('$TEST_UPDATE_ID', '$SENSITIVE_UPDATE_ID', '$CLEAN_UPDATE_ID', '$RAG_MATCH_UPDATE_ID', '$RAG_NOMATCH_UPDATE_ID', '$TIER1_UPDATE_ID', '$TIER2_UPDATE_ID') OR platform_message_id LIKE '${RATE_LIMIT_PREFIX}%';" >/dev/null
 psql_exec -c "DELETE FROM sensitive_data_events WHERE platform_user_id = '$SENSITIVE_USER_ID';" >/dev/null
 psql_exec -c "DELETE FROM interaction_logs WHERE platform_user_id IN ('$TEST_USER_ID', '$SENSITIVE_USER_ID', '$CLEAN_USER_ID', '$RAG_MATCH_USER_ID', '$RAG_NOMATCH_USER_ID', '$TIER1_USER_ID', '$TIER2_USER_ID', '$RATE_LIMIT_USER_ID');" >/dev/null

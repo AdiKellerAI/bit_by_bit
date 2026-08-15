@@ -20,10 +20,10 @@ run_sql_file() {
 
 table_count=$(docker compose exec -T postgres psql -U "$PG_USER" -d "$PG_DB" -tAc \
   "SELECT count(*) FROM information_schema.tables WHERE table_schema='public'" | tr -d '[:space:]')
-if [ "$table_count" = "12" ]; then
-  echo "[x] all 12 tables present"
+if [ "$table_count" = "13" ]; then
+  echo "[x] all 13 tables present"
 else
-  echo "[ ] all 12 tables present (found $table_count)"
+  echo "[ ] all 13 tables present (found $table_count)"
   fail=1
 fi
 
