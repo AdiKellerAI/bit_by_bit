@@ -1,0 +1,393 @@
+{
+  "id": "nightly-evaluator-phase6",
+  "name": "Nightly Evaluator (Loop 3 Meta-Learning)",
+  "active": true,
+  "nodes": [
+    {
+      "id": "schedule-trigger-1",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 300],
+      "parameters": {
+        "rule": {
+          "interval": [
+            { "field": "cronExpression", "expression": "0 3 * * *" }
+          ]
+        }
+      }
+    },
+    {
+      "id": "manual-trigger-1",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [240, 460],
+      "parameters": {}
+    },
+    {
+      "id": "pg-select-flagged-1",
+      "name": "Select Flagged Interactions",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [460, 300],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "SELECT id, user_query, agent_response, intent, retrieved_kb_ids, feedback_score, needs_review\nFROM interaction_logs\nWHERE created_at > now() - interval '24 hours'\n  AND (feedback_score = 0 OR needs_review = true)\nORDER BY created_at\nLIMIT 20;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": { "id": "2ceb9b4a66d1d908", "name": "Postgres (bit_by_bit)" }
+      }
+    },
+    {
+      "id": "code-aggregate-flagged-1",
+      "name": "Aggregate Flagged Interactions",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const items = $input.all().map(i => i.json);\nreturn [{ json: { count: items.length, flagged: items } }];\n"
+      }
+    },
+    {
+      "id": "if-any-flagged-1",
+      "name": "Any Flagged?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [900, 300],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.count }}",
+              "rightValue": 0,
+              "operator": { "type": "number", "operation": "gt" }
+            }
+          ],
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 2 }
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "pg-get-evaluator-prompt-1",
+      "name": "Get Evaluator Prompt",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1120, 220],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "SELECT prompt_text FROM system_prompts WHERE prompt_type = 'evaluator' AND is_active = true LIMIT 1;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": { "id": "2ceb9b4a66d1d908", "name": "Postgres (bit_by_bit)" }
+      }
+    },
+    {
+      "id": "pg-get-active-base-prompt-1",
+      "name": "Get Active Base Prompt",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1340, 220],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "SELECT id, prompt_text FROM system_prompts WHERE prompt_type = 'base' AND is_active = true LIMIT 1;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": { "id": "2ceb9b4a66d1d908", "name": "Postgres (bit_by_bit)" }
+      }
+    },
+    {
+      "id": "anthropic-call-evaluator-1",
+      "name": "Call Evaluator",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1560, 220],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "anthropicApi",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'claude-sonnet-5', max_tokens: 1024, system: $('Get Evaluator Prompt').first().json.prompt_text, messages: [ { role: 'user', content: JSON.stringify($('Aggregate Flagged Interactions').first().json.flagged) } ] }) }}",
+        "sendHeaders": true,
+        "specifyHeaders": "keypair",
+        "headerParameters": {
+          "parameters": [ { "name": "anthropic-version", "value": "2023-06-01" } ]
+        },
+        "options": {}
+      },
+      "credentials": {
+        "anthropicApi": { "id": "a7d4f9c2e13b5680", "name": "Anthropic (bit_by_bit)" }
+      }
+    },
+    {
+      "id": "code-parse-evaluator-output-1",
+      "name": "Parse Evaluator Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1780, 220],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const resp = $json;\nconst textBlock = (resp.content || []).find(b => b.type === 'text');\nconst text = (textBlock && textBlock.text) || '';\nlet parsed;\ntry {\n  const cleaned = text.trim().replace(/^```json\\n?/, '').replace(/```$/, '');\n  parsed = JSON.parse(cleaned);\n} catch (e) {\n  parsed = { problem: '', root_cause: '', proposed_prompt_change: '', new_examples: [], expected_benefit: '', risk: '', confidence: 0 };\n}\nreturn [{ json: parsed }];\n"
+      }
+    },
+    {
+      "id": "anthropic-synthesize-prompt-1",
+      "name": "Synthesize Candidate Prompt",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2000, 220],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "anthropicApi",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'claude-sonnet-5', max_tokens: 1500, system: 'You rewrite AI assistant system prompts. You will be given the CURRENT prompt and a DESCRIPTION of a change to apply. Output ONLY the complete new prompt text with the change incorporated. Do not include any explanation, preamble, or markdown formatting - output the raw prompt text only, ready to use as-is.', messages: [ { role: 'user', content: 'CURRENT PROMPT:\\n' + $('Get Active Base Prompt').first().json.prompt_text + '\\n\\nCHANGE TO APPLY:\\n' + $('Parse Evaluator Output').first().json.proposed_prompt_change } ] }) }}",
+        "sendHeaders": true,
+        "specifyHeaders": "keypair",
+        "headerParameters": {
+          "parameters": [ { "name": "anthropic-version", "value": "2023-06-01" } ]
+        },
+        "options": {}
+      },
+      "credentials": {
+        "anthropicApi": { "id": "a7d4f9c2e13b5680", "name": "Anthropic (bit_by_bit)" }
+      }
+    },
+    {
+      "id": "code-parse-synthesized-prompt-1",
+      "name": "Parse Synthesized Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2220, 220],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const resp = $json;\nconst textBlock = (resp.content || []).find(b => b.type === 'text');\nconst text = (textBlock && textBlock.text) || '';\nreturn [{ json: { candidate_prompt_text: text.trim() } }];\n"
+      }
+    },
+    {
+      "id": "pg-get-golden-eval-cases-1",
+      "name": "Get Golden Eval Cases",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [2440, 220],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "SELECT id, category, question, expected_behavior, severity FROM evaluation_cases WHERE active = true ORDER BY category;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": { "id": "2ceb9b4a66d1d908", "name": "Postgres (bit_by_bit)" }
+      }
+    },
+    {
+      "id": "openai-run-golden-eval-candidate-1",
+      "name": "Run Golden Eval Candidate",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2660, 220],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'gpt-5.4-nano', max_completion_tokens: 500, messages: [ { role: 'system', content: $('Parse Synthesized Prompt').first().json.candidate_prompt_text }, { role: 'user', content: $json.question } ] }) }}",
+        "options": {}
+      },
+      "credentials": {
+        "openAiApi": { "id": "53f2686ac5199beb", "name": "OpenAI (bit_by_bit)" }
+      }
+    },
+    {
+      "id": "code-collect-candidate-answers-1",
+      "name": "Collect Candidate Answers",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2880, 220],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const cases = $('Get Golden Eval Cases').all().map(i => i.json);\nconst responses = $input.all().map(i => i.json);\nconst combined = cases.map((c, idx) => {\n  const resp = responses[idx] || {};\n  const text = (resp.choices && resp.choices[0] && resp.choices[0].message && resp.choices[0].message.content) || '';\n  const inputTokens = (resp.usage && resp.usage.prompt_tokens) || 0;\n  const outputTokens = (resp.usage && resp.usage.completion_tokens) || 0;\n  return { ...c, actual_answer: text, input_tokens: inputTokens, output_tokens: outputTokens };\n});\nreturn [{ json: { combined } }];\n"
+      }
+    },
+    {
+      "id": "openai-judge-all-answers-1",
+      "name": "Judge All Answers",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [3100, 220],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'gpt-5.4-nano', max_completion_tokens: 2000, messages: [ { role: 'system', content: 'You are a strict evaluator judging AI assistant answers against expected behavior criteria. You will receive a JSON array of test cases, each with category, severity, question, expected_behavior, and actual_answer. For each case, judge whether actual_answer satisfies expected_behavior. Respond with ONLY a JSON array, no other text, one object per case in the same order: [{\"category\": \"...\", \"severity\": \"...\", \"pass\": true|false, \"reason\": \"<one sentence>\"}, ...]' }, { role: 'user', content: JSON.stringify($('Collect Candidate Answers').first().json.combined) } ] }) }}",
+        "options": {}
+      },
+      "credentials": {
+        "openAiApi": { "id": "53f2686ac5199beb", "name": "OpenAI (bit_by_bit)" }
+      }
+    },
+    {
+      "id": "code-parse-judge-output-1",
+      "name": "Parse Judge Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3320, 220],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const resp = $json;\nconst text = (resp.choices && resp.choices[0] && resp.choices[0].message && resp.choices[0].message.content) || '';\nlet results = [];\ntry {\n  const cleaned = text.trim().replace(/^```json\\n?/, '').replace(/```$/, '');\n  results = JSON.parse(cleaned);\n} catch (e) {\n  results = [];\n}\nconst inputTokens = (resp.usage && resp.usage.prompt_tokens) || 0;\nconst outputTokens = (resp.usage && resp.usage.completion_tokens) || 0;\nreturn [{ json: { results, input_tokens: inputTokens, output_tokens: outputTokens } }];\n"
+      }
+    },
+    {
+      "id": "pg-get-model-pricing-eval-1",
+      "name": "Get Model Pricing",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [3540, 220],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "SELECT model_name, input_price_per_1m_tokens, output_price_per_1m_tokens\nFROM model_registry\nWHERE model_name IN ('gpt-5.4-nano', 'claude-sonnet-5') AND enabled = true;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": { "id": "2ceb9b4a66d1d908", "name": "Postgres (bit_by_bit)" }
+      }
+    },
+    {
+      "id": "code-score-and-decide-1",
+      "name": "Score & Decide",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3760, 220],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const judgeResults = $('Parse Judge Output').first().json.results || [];\nconst passCount = judgeResults.filter(r => r.pass).length;\nconst totalCount = judgeResults.length;\nconst passRate = totalCount > 0 ? passCount / totalCount : 0;\n\nconst criticalFail = judgeResults.some(r => r.category === 'sensitive_data' && r.severity === 'critical' && !r.pass);\nconst autoReject = passRate < 0.90 || criticalFail;\n\nconst evaluatorOut = $('Parse Evaluator Output').first().json;\nconst rationale = 'Problem: ' + evaluatorOut.problem + '\\nRoot cause: ' + evaluatorOut.root_cause + '\\nExpected benefit: ' + evaluatorOut.expected_benefit + '\\nRisk: ' + evaluatorOut.risk + '\\nConfidence: ' + evaluatorOut.confidence;\n\nconst pricingRows = $('Get Model Pricing').all().map(i => i.json);\nconst nanoPricing = pricingRows.find(r => r.model_name === 'gpt-5.4-nano') || {};\nconst sonnetPricing = pricingRows.find(r => r.model_name === 'claude-sonnet-5') || {};\nconst nanoIn = Number(nanoPricing.input_price_per_1m_tokens) || 0;\nconst nanoOut = Number(nanoPricing.output_price_per_1m_tokens) || 0;\nconst sonnetIn = Number(sonnetPricing.input_price_per_1m_tokens) || 0;\nconst sonnetOut = Number(sonnetPricing.output_price_per_1m_tokens) || 0;\n\nconst evalCall = $('Call Evaluator').first().json;\nconst evalUsage = evalCall.usage || {};\nconst synthCall = $('Synthesize Candidate Prompt').first().json;\nconst synthUsage = synthCall.usage || {};\n\nconst candidateAnswers = $('Collect Candidate Answers').first().json.combined || [];\nconst candidateInTokens = candidateAnswers.reduce((s, c) => s + (c.input_tokens || 0), 0);\nconst candidateOutTokens = candidateAnswers.reduce((s, c) => s + (c.output_tokens || 0), 0);\n\nconst judgeOut = $('Parse Judge Output').first().json;\n\nconst sonnetCost = ((evalUsage.input_tokens || 0) + (synthUsage.input_tokens || 0)) / 1e6 * sonnetIn\n  + ((evalUsage.output_tokens || 0) + (synthUsage.output_tokens || 0)) / 1e6 * sonnetOut;\nconst nanoCost = (candidateInTokens + (judgeOut.input_tokens || 0)) / 1e6 * nanoIn\n  + (candidateOutTokens + (judgeOut.output_tokens || 0)) / 1e6 * nanoOut;\nconst totalCost = sonnetCost + nanoCost;\n\nconst flagged = $('Aggregate Flagged Interactions').first().json.flagged || [];\nconst sourceInteractionIds = flagged.map(f => f.id);\n\nreturn [{ json: {\n  pass_rate: passRate,\n  auto_reject: autoReject,\n  status: autoReject ? 'rejected' : 'pending',\n  rationale,\n  evaluation_cost_usd: totalCost,\n  source_interaction_ids: sourceInteractionIds,\n  new_examples: evaluatorOut.new_examples || [],\n} }];\n"
+      }
+    },
+    {
+      "id": "pg-insert-proposal-1",
+      "name": "Insert Proposal",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [3980, 220],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "INSERT INTO prompt_change_proposals (current_prompt_id, proposed_prompt, proposed_examples, rationale, source_interactions, evaluation_score, evaluation_cost_usd, status)\nVALUES ($1, $2, $3::jsonb, $4, $5::jsonb, $6, $7, $8)\nRETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [ $('Get Active Base Prompt').first().json.id, $('Parse Synthesized Prompt').first().json.candidate_prompt_text, JSON.stringify($('Score & Decide').item.json.new_examples), $('Score & Decide').item.json.rationale, JSON.stringify($('Score & Decide').item.json.source_interaction_ids), $('Score & Decide').item.json.pass_rate, $('Score & Decide').item.json.evaluation_cost_usd, $('Score & Decide').item.json.status ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": { "id": "2ceb9b4a66d1d908", "name": "Postgres (bit_by_bit)" }
+      }
+    },
+    {
+      "id": "telegram-alert-admin-eval-1",
+      "name": "Alert Admin (Evaluator)",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [4200, 220],
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "={{ $env.ADMIN_TELEGRAM_CHAT_ID }}",
+        "text": "={{ \"Nightly evaluator ran.\\nStatus: \" + $('Score & Decide').item.json.status + \"\\nGolden eval score: \" + Math.round($('Score & Decide').item.json.pass_rate * 100) + \"%\\nCost: $\" + $('Score & Decide').item.json.evaluation_cost_usd.toFixed(4) + \"\\n\\n\" + ($('Score & Decide').item.json.status === 'rejected' ? \"Auto-rejected, no action needed.\" : \"Awaiting approval. /approve and /reject commands are not wired up yet (coming in the next sub-phase) - check prompt_change_proposals directly for now.\") }}",
+        "additionalFields": {}
+      },
+      "credentials": {
+        "telegramApi": { "id": "895b9583b757539f", "name": "Telegram Bot (bit_by_bit)" }
+      }
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [[{ "node": "Select Flagged Interactions", "type": "main", "index": 0 }]]
+    },
+    "Manual Trigger": {
+      "main": [[{ "node": "Select Flagged Interactions", "type": "main", "index": 0 }]]
+    },
+    "Select Flagged Interactions": {
+      "main": [[{ "node": "Aggregate Flagged Interactions", "type": "main", "index": 0 }]]
+    },
+    "Aggregate Flagged Interactions": {
+      "main": [[{ "node": "Any Flagged?", "type": "main", "index": 0 }]]
+    },
+    "Any Flagged?": {
+      "main": [
+        [{ "node": "Get Evaluator Prompt", "type": "main", "index": 0 }],
+        []
+      ]
+    },
+    "Get Evaluator Prompt": {
+      "main": [[{ "node": "Get Active Base Prompt", "type": "main", "index": 0 }]]
+    },
+    "Get Active Base Prompt": {
+      "main": [[{ "node": "Call Evaluator", "type": "main", "index": 0 }]]
+    },
+    "Call Evaluator": {
+      "main": [[{ "node": "Parse Evaluator Output", "type": "main", "index": 0 }]]
+    },
+    "Parse Evaluator Output": {
+      "main": [[{ "node": "Synthesize Candidate Prompt", "type": "main", "index": 0 }]]
+    },
+    "Synthesize Candidate Prompt": {
+      "main": [[{ "node": "Parse Synthesized Prompt", "type": "main", "index": 0 }]]
+    },
+    "Parse Synthesized Prompt": {
+      "main": [[{ "node": "Get Golden Eval Cases", "type": "main", "index": 0 }]]
+    },
+    "Get Golden Eval Cases": {
+      "main": [[{ "node": "Run Golden Eval Candidate", "type": "main", "index": 0 }]]
+    },
+    "Run Golden Eval Candidate": {
+      "main": [[{ "node": "Collect Candidate Answers", "type": "main", "index": 0 }]]
+    },
+    "Collect Candidate Answers": {
+      "main": [[{ "node": "Judge All Answers", "type": "main", "index": 0 }]]
+    },
+    "Judge All Answers": {
+      "main": [[{ "node": "Parse Judge Output", "type": "main", "index": 0 }]]
+    },
+    "Parse Judge Output": {
+      "main": [[{ "node": "Get Model Pricing", "type": "main", "index": 0 }]]
+    },
+    "Get Model Pricing": {
+      "main": [[{ "node": "Score & Decide", "type": "main", "index": 0 }]]
+    },
+    "Score & Decide": {
+      "main": [[{ "node": "Insert Proposal", "type": "main", "index": 0 }]]
+    },
+    "Insert Proposal": {
+      "main": [[{ "node": "Alert Admin (Evaluator)", "type": "main", "index": 0 }]]
+    }
+  }
+}
