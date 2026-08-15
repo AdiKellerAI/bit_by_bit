@@ -330,6 +330,53 @@ else
   fail=1
 fi
 
+# Phase 8 (LDD sub-phase 1): telemetry completeness (language/latency_ms) on a normal
+# generation, plus the "feedback 1"/"feedback 0" command branch. Reuses the RAG-match query
+# (cheap, KB-matched, no real generation cost) as the interaction to give feedback on.
+TELEMETRY_UPDATE_ID="45$(date +%s)"
+TELEMETRY_USER_ID="46$(date +%s)"
+curl -s -o /dev/null -X POST "$URL" \
+  -H "Content-Type: application/json" \
+  -H "X-Telegram-Bot-Api-Secret-Token: $SECRET" \
+  -d "{\"update_id\": $TELEMETRY_UPDATE_ID, \"message\": {\"message_id\": 1, \"from\": {\"id\": $TELEMETRY_USER_ID}, \"chat\": {\"id\": $TELEMETRY_USER_ID, \"type\": \"private\"}, \"date\": 1735689600, \"text\": \"Tell me about LangTalks podcast\"}}"
+sleep 2
+telemetry_row=$(psql_exec -tAc "SELECT (language IS NOT NULL)::text || '|' || (latency_ms > 0)::text FROM interaction_logs WHERE platform_user_id = '$TELEMETRY_USER_ID'" | tr -d '[:space:]')
+if [ "$telemetry_row" = "true|true" ]; then
+  echo "[x] language and latency_ms are populated on a normal generation"
+else
+  echo "[ ] language and latency_ms are populated on a normal generation (got: $telemetry_row)"
+  fail=1
+fi
+
+FEEDBACK_UPDATE_ID="47$(date +%s)"
+curl -s -o /dev/null -X POST "$URL" \
+  -H "Content-Type: application/json" \
+  -H "X-Telegram-Bot-Api-Secret-Token: $SECRET" \
+  -d "{\"update_id\": $FEEDBACK_UPDATE_ID, \"message\": {\"message_id\": 2, \"from\": {\"id\": $TELEMETRY_USER_ID}, \"chat\": {\"id\": $TELEMETRY_USER_ID, \"type\": \"private\"}, \"date\": 1735689601, \"text\": \"feedback 1\"}}"
+sleep 2
+feedback_row=$(psql_exec -tAc "SELECT feedback_score::text || '|' || needs_review::text FROM interaction_logs WHERE platform_user_id = '$TELEMETRY_USER_ID'" | tr -d '[:space:]')
+if [ "$feedback_row" = "1|false" ]; then
+  echo "[x] 'feedback 1' correlates to the user's most recent interaction and updates feedback_score/needs_review"
+else
+  echo "[ ] 'feedback 1' correlates to the user's most recent interaction (got: $feedback_row)"
+  fail=1
+fi
+
+NOTARGET_UPDATE_ID="48$(date +%s)"
+NOTARGET_USER_ID="49$(date +%s)"
+curl -s -o /dev/null -X POST "$URL" \
+  -H "Content-Type: application/json" \
+  -H "X-Telegram-Bot-Api-Secret-Token: $SECRET" \
+  -d "{\"update_id\": $NOTARGET_UPDATE_ID, \"message\": {\"message_id\": 1, \"from\": {\"id\": $NOTARGET_USER_ID}, \"chat\": {\"id\": $NOTARGET_USER_ID, \"type\": \"private\"}, \"date\": 1735689600, \"text\": \"feedback 0\"}}"
+sleep 1
+notarget_count=$(psql_exec -tAc "SELECT count(*) FROM interaction_logs WHERE platform_user_id = '$NOTARGET_USER_ID'" | tr -d '[:space:]')
+if [ "$notarget_count" = "0" ]; then
+  echo "[x] a feedback command with no prior interaction does not create an interaction_logs row"
+else
+  echo "[ ] a feedback command with no prior interaction does not create an interaction_logs row (found $notarget_count)"
+  fail=1
+fi
+
 # Phase 7: every test message above that reaches real generation (not KB-matched, not
 # early-blocked) is now legitimately written to the semantic cache (Phase 7 gap 2/3). Without
 # cleanup, re-running this suite within the cache's 24h freshness window would hit the cache
@@ -339,10 +386,10 @@ fi
 # cache in the first place (see "Determine Should Cache"), so they don't need listing here.
 psql_exec -c "DELETE FROM semantic_cache WHERE query_text IN ('verify-all test', 'What is RAG?', 'best pizza recipe', 'What''s a quick way to reverse a string in Python?', 'Please explain in detail how a hash table works internally and compare it to a binary search tree for lookup performance.', 'hi');" >/dev/null
 
-psql_exec -c "DELETE FROM webhook_events WHERE platform_message_id IN ('$TEST_UPDATE_ID', '$SENSITIVE_UPDATE_ID', '$CLEAN_UPDATE_ID', '$RAG_MATCH_UPDATE_ID', '$RAG_NOMATCH_UPDATE_ID', '$TIER1_UPDATE_ID', '$TIER2_UPDATE_ID', '$GREETING_UPDATE_ID', '$CACHE_UPDATE_ID', '$CACHE_UPDATE_ID2', '$BASE_CHECK_UPDATE_ID') OR platform_message_id LIKE '${RATE_LIMIT_PREFIX}%';" >/dev/null
+psql_exec -c "DELETE FROM webhook_events WHERE platform_message_id IN ('$TEST_UPDATE_ID', '$SENSITIVE_UPDATE_ID', '$CLEAN_UPDATE_ID', '$RAG_MATCH_UPDATE_ID', '$RAG_NOMATCH_UPDATE_ID', '$TIER1_UPDATE_ID', '$TIER2_UPDATE_ID', '$GREETING_UPDATE_ID', '$CACHE_UPDATE_ID', '$CACHE_UPDATE_ID2', '$BASE_CHECK_UPDATE_ID', '$TELEMETRY_UPDATE_ID', '$FEEDBACK_UPDATE_ID', '$NOTARGET_UPDATE_ID') OR platform_message_id LIKE '${RATE_LIMIT_PREFIX}%';" >/dev/null
 psql_exec -c "DELETE FROM sensitive_data_events WHERE platform_user_id = '$SENSITIVE_USER_ID';" >/dev/null
-psql_exec -c "DELETE FROM interaction_logs WHERE platform_user_id IN ('$TEST_USER_ID', '$SENSITIVE_USER_ID', '$CLEAN_USER_ID', '$RAG_MATCH_USER_ID', '$RAG_NOMATCH_USER_ID', '$TIER1_USER_ID', '$TIER2_USER_ID', '$RATE_LIMIT_USER_ID', '$GREETING_USER_ID', '$CACHE_USER_ID', '$CACHE_USER_ID2', '$BASE_CHECK_USER_ID');" >/dev/null
-psql_exec -c "DELETE FROM users WHERE platform_user_id IN ('$TEST_USER_ID', '$SENSITIVE_USER_ID', '$CLEAN_USER_ID', '$RAG_MATCH_USER_ID', '$RAG_NOMATCH_USER_ID', '$TIER1_USER_ID', '$TIER2_USER_ID', '$RATE_LIMIT_USER_ID', '$GREETING_USER_ID', '$CACHE_USER_ID', '$CACHE_USER_ID2', '$BASE_CHECK_USER_ID');" >/dev/null
+psql_exec -c "DELETE FROM interaction_logs WHERE platform_user_id IN ('$TEST_USER_ID', '$SENSITIVE_USER_ID', '$CLEAN_USER_ID', '$RAG_MATCH_USER_ID', '$RAG_NOMATCH_USER_ID', '$TIER1_USER_ID', '$TIER2_USER_ID', '$RATE_LIMIT_USER_ID', '$GREETING_USER_ID', '$CACHE_USER_ID', '$CACHE_USER_ID2', '$BASE_CHECK_USER_ID', '$TELEMETRY_USER_ID', '$NOTARGET_USER_ID');" >/dev/null
+psql_exec -c "DELETE FROM users WHERE platform_user_id IN ('$TEST_USER_ID', '$SENSITIVE_USER_ID', '$CLEAN_USER_ID', '$RAG_MATCH_USER_ID', '$RAG_NOMATCH_USER_ID', '$TIER1_USER_ID', '$TIER2_USER_ID', '$RATE_LIMIT_USER_ID', '$GREETING_USER_ID', '$CACHE_USER_ID', '$CACHE_USER_ID2', '$BASE_CHECK_USER_ID', '$TELEMETRY_USER_ID', '$NOTARGET_USER_ID');" >/dev/null
 
 if [ "$fail" -eq 0 ]; then
   echo "All n8n Telegram workflow tests passed."

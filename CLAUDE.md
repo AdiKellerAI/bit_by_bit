@@ -35,14 +35,21 @@ feed Phase 6 and Phase 7 respectively. Sensitive-Data Detection deliberately sta
 code-based rules (`security/sensitive-data-detection/patterns.ts`), not a `system_prompts`
 row, per ADR-0003/ADR-0004's explicit exclusion from the automated prompt pipeline.
 
-**Not yet started:** Phase 6 "LDD" (telemetry, feedback, evaluator loop, golden-question
-evaluation, human approval, rollback - the project's actual self-improving core;
-`interaction_logs.feedback_score`/`needs_review` sit unused; the Evaluator Prompt is seeded and
-waiting). Phase 7 "Weekly Community Automation" (digest/knowledge-gap report/cost report/admin
-alerts; the Digest Prompt is seeded and waiting). Hosting migration (not a numbered spec phase,
-but an explicit hard prerequisite before Phase 8 Pilot) is deliberately still deferred, not
-forgotten - staying local. Phase 8 Pilot and Phase 9 Expansion correctly not started, since
-they depend on everything above.
+**Phase 6 "LDD" sub-phase 1 (§10 "Loop 2 - Telemetry & Feedback") is now complete**:
+`interaction_logs` collects every field §10 lists (query, response, model, tokens, cost,
+latency, cache hit, intent, language, RAG docs, feedback, security classification,
+sensitive-data flag, prompt version, platform), and the required `feedback 1`/`feedback 0`
+command path actually writes to `feedback_score`/`needs_review` - see "Phase 6 LDD sub-phase 1
+design notes" below. **Not yet started:** the rest of Phase 6 - Loop 3 "Meta-Learning" (§11):
+nightly evaluator loop, golden-question evaluation, human approval, rollback. This is the
+project's actual self-improving core and is explicitly agent-driven end to end except for the
+final human-approval gate (ADR-0004); it's blocked on the golden evaluation set, which is Adi's
+own deliverable to prepare, not something to invent. The Evaluator Prompt is seeded and
+waiting. Phase 7 "Weekly Community Automation" (digest/knowledge-gap report/cost report/admin
+alerts; the Digest Prompt is seeded and waiting) not started. Hosting migration (not a numbered
+spec phase, but an explicit hard prerequisite before Phase 8 Pilot) is deliberately still
+deferred, not forgotten - staying local. Phase 8 Pilot and Phase 9 Expansion correctly not
+started, since they depend on everything above.
 
 Two candidate next steps, neither planned yet: Telegram inline-keyboard buttons for
 tap-to-select clarifying answers (model must emit structured suggested replies, plus new
@@ -156,6 +163,48 @@ memory for the WhatsApp direction, not yet reflected in PROJECT-SPEC.md/this fil
   the nightly evaluator loop, Phase 7 (Weekly Community Automation) builds the digest job. Don't
   be surprised these prompts exist with no code path that calls them; that's the intended state
   until those phases land.
+
+### Phase 6 LDD sub-phase 1 design notes (Telemetry & Feedback, §10)
+
+- **This sub-phase is data collection only, not the self-improving loop itself.** §10's
+  telemetry list and the `feedback 1`/`feedback 0` command feed **Loop 3 "Meta-Learning" (§11)**
+  - a nightly evaluator agent that reads this data and proposes prompt changes automatically -
+  which is deliberately not built yet, blocked on Adi preparing the golden evaluation set
+  (`evaluation_cases`' own migration comment: "prepared by you... not invented here"). Loop 3 is
+  agent-driven end to end except the final activation step, which always requires human approval
+  via `/approve`/`/reject`/`/rollback` (ADR-0004) - the evaluator can never activate its own
+  change.
+- **Feedback command runs before the rate limit's downstream pipeline, but still counts against
+  the same rate limit.** `Is Feedback Command?` sits right after `Over Rate Limit?`'s false
+  branch, before `Detect Language, Classify, Detect Sensitive Data` - a feedback command never
+  triggers RAG/generation/cost, and is intentionally not logged as its own `interaction_logs`
+  row (it mutates an existing row instead).
+- **Reply-based correlation, with a same-user fallback.** `Find Target Interaction` prefers
+  matching `platform_response_message_id` against the message the user replied to
+  (`reply_to_message_id`, captured in `Verify & Normalize` off the raw Telegram update); if
+  there's no reply target (or it doesn't match), it falls back to that user's single most recent
+  `interaction_logs` row. Uses the same defensive `LEFT JOIN LATERAL` pattern as
+  `Search Semantic Cache`/`Get Router Model` - guarantees exactly one output row even when
+  nothing matches, so the downstream `Found Target Interaction?` IF node always has something to
+  branch on.
+- **Capturing the bot's own sent Telegram `message_id` needed an INSERT-then-UPDATE, not a
+  single INSERT.** `Insert interaction_logs (final)` runs before `Send Telegram Message`, so the
+  Telegram-assigned `message_id` isn't known until after the send. `Insert interaction_logs
+  (final)` now has `RETURNING id`, threaded through `Prepare Telegram Send` as
+  `interaction_log_id`, and a new `Update interaction_logs (message_id)` node (best-effort,
+  `onError: continueRegularOutput`) runs after the send to fill in
+  `platform_response_message_id`. A failure here should degrade feedback matching, not break
+  message delivery, which already succeeded by that point.
+- **`latency_ms` is computed in SQL, not a Code node.** `Verify & Normalize` now also returns
+  `processing_started_at` (when our pipeline started, distinct from `received_at` which is when
+  Telegram says the user sent the message); `Insert interaction_logs (final)`'s query computes
+  `EXTRACT(EPOCH FROM (now() - $N::timestamptz)) * 1000` directly rather than subtracting in a
+  separate node.
+- **Only the required fallback command is built, not emoji reactions.** §10 explicitly gates
+  emoji reactions as "implement only where supported"; the command path (`feedback 1`/
+  `feedback 0`) is the one piece the spec actually mandates for MVP completeness. n8n's Telegram
+  integration does support inline-keyboard `callback_query` handling for a tap-to-react UI later
+  (confirmed available, unused today) - a larger, separate feature, not in scope here.
 
 ## How we work (established this session - follow it, don't re-derive it)
 

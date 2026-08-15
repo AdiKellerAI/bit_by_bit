@@ -187,6 +187,154 @@
       }
     },
     {
+      "id": "if-is-feedback-command-1",
+      "name": "Is Feedback Command?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [1220, 200],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $('Verify & Normalize').item.json.text }}",
+              "rightValue": "/^feedback\\s+[01]$/i",
+              "operator": { "type": "string", "operation": "regex" }
+            }
+          ],
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 2 }
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "code-parse-feedback-command-1",
+      "name": "Parse Feedback Command",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1340, 200],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const text = $('Verify & Normalize').item.json.text || '';\nconst match = text.match(/^feedback\\s+([01])$/i);\nconst score = match ? parseInt(match[1], 10) : null;\nreturn [{ json: { feedback_score: score } }];\n"
+      }
+    },
+    {
+      "id": "pg-find-target-interaction-1",
+      "name": "Find Target Interaction",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1460, 200],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "SELECT il.id\nFROM (SELECT 1) AS dummy\nLEFT JOIN LATERAL (\n  SELECT id FROM interaction_logs\n  WHERE platform_user_id = $1\n    AND ($2::text IS NULL OR platform_response_message_id = $2)\n  ORDER BY (platform_response_message_id = $2) DESC NULLS LAST, created_at DESC\n  LIMIT 1\n) il ON true\nLIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $('Verify & Normalize').item.json.platform_user_id, $('Verify & Normalize').item.json.reply_to_message_id ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": { "id": "2ceb9b4a66d1d908", "name": "Postgres (bit_by_bit)" }
+      }
+    },
+    {
+      "id": "if-found-target-interaction-1",
+      "name": "Found Target Interaction?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [1580, 200],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.id }}",
+              "rightValue": "",
+              "operator": { "type": "string", "operation": "notEmpty" }
+            }
+          ],
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 2 }
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "pg-update-feedback-1",
+      "name": "Update Feedback",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1700, 140],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "UPDATE interaction_logs SET feedback_score = $1, needs_review = ($1 = 0) WHERE id = $2;",
+        "options": {
+          "queryReplacement": "={{ [ $('Parse Feedback Command').item.json.feedback_score, $('Find Target Interaction').item.json.id ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": { "id": "2ceb9b4a66d1d908", "name": "Postgres (bit_by_bit)" }
+      }
+    },
+    {
+      "id": "telegram-feedback-ack-1",
+      "name": "Send Feedback Ack",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [1820, 140],
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "={{ $('Verify & Normalize').item.json.chat_id }}",
+        "text": "={{ \"\\u05ea\\u05d5\\u05d3\\u05d4 \\u05e2\\u05dc \\u05d4\\u05de\\u05e9\\u05d5\\u05d1! / Thanks for the feedback!\" }}",
+        "additionalFields": {}
+      },
+      "credentials": {
+        "telegramApi": { "id": "895b9583b757539f", "name": "Telegram Bot (bit_by_bit)" }
+      }
+    },
+    {
+      "id": "respond-feedback-recorded-1",
+      "name": "Respond Feedback Recorded",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [1940, 140],
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "feedback_recorded",
+        "options": { "responseCode": 200 }
+      }
+    },
+    {
+      "id": "telegram-no-feedback-target-1",
+      "name": "Send No Target Reply",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [1700, 260],
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "={{ $('Verify & Normalize').item.json.chat_id }}",
+        "text": "={{ \"\\u05d0\\u05d9\\u05df \\u05dc\\u05d9 \\u05d4\\u05d5\\u05d3\\u05e2\\u05d4 \\u05e7\\u05d5\\u05d3\\u05de\\u05ea \\u05dc\\u05ea\\u05ea \\u05e2\\u05dc\\u05d9\\u05d4 \\u05de\\u05e9\\u05d5\\u05d1. / I don't have a previous message to give feedback on.\" }}",
+        "additionalFields": {}
+      },
+      "credentials": {
+        "telegramApi": { "id": "895b9583b757539f", "name": "Telegram Bot (bit_by_bit)" }
+      }
+    },
+    {
+      "id": "respond-no-feedback-target-1",
+      "name": "Respond No Feedback Target",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [1820, 260],
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "no_feedback_target",
+        "options": { "responseCode": 200 }
+      }
+    },
+    {
       "id": "code-security-gate-1",
       "name": "Detect Language, Classify, Detect Sensitive Data",
       "type": "n8n-nodes-base.code",
@@ -1094,7 +1242,44 @@
     "Over Rate Limit?": {
       "main": [
         [{ "node": "Insert interaction_logs (rate limited)", "type": "main", "index": 0 }],
+        [{ "node": "Is Feedback Command?", "type": "main", "index": 0 }]
+      ]
+    },
+    "Is Feedback Command?": {
+      "main": [
+        [{ "node": "Parse Feedback Command", "type": "main", "index": 0 }],
         [{ "node": "Detect Language, Classify, Detect Sensitive Data", "type": "main", "index": 0 }]
+      ]
+    },
+    "Parse Feedback Command": {
+      "main": [
+        [{ "node": "Find Target Interaction", "type": "main", "index": 0 }]
+      ]
+    },
+    "Find Target Interaction": {
+      "main": [
+        [{ "node": "Found Target Interaction?", "type": "main", "index": 0 }]
+      ]
+    },
+    "Found Target Interaction?": {
+      "main": [
+        [{ "node": "Update Feedback", "type": "main", "index": 0 }],
+        [{ "node": "Send No Target Reply", "type": "main", "index": 0 }]
+      ]
+    },
+    "Update Feedback": {
+      "main": [
+        [{ "node": "Send Feedback Ack", "type": "main", "index": 0 }]
+      ]
+    },
+    "Send Feedback Ack": {
+      "main": [
+        [{ "node": "Respond Feedback Recorded", "type": "main", "index": 0 }]
+      ]
+    },
+    "Send No Target Reply": {
+      "main": [
+        [{ "node": "Respond No Feedback Target", "type": "main", "index": 0 }]
       ]
     },
     "Insert interaction_logs (rate limited)": {

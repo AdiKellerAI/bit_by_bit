@@ -49,6 +49,13 @@ else
   fail=1
 fi
 
+if run_sql_file "$(dirname "$0")/05_interaction_logs_feedback_score_check.sql" >/tmp/dbtest_05.log 2>&1; then
+  echo "[ ] interaction_logs rejects an out-of-range feedback_score (insert unexpectedly succeeded)"
+  fail=1
+else
+  echo "[x] interaction_logs rejects an out-of-range feedback_score"
+fi
+
 if [ "$fail" -eq 0 ]; then
   echo "All database tests passed."
 else
