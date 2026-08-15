@@ -106,6 +106,10 @@ CREATE TABLE public.interaction_logs (
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     security_signal text,
     security_signal_reasoning text,
+    language text,
+    latency_ms integer,
+    platform_response_message_id text,
+    CONSTRAINT interaction_logs_feedback_score_check CHECK ((feedback_score = ANY (ARRAY[0, 1]))),
     CONSTRAINT interaction_logs_platform_check CHECK ((platform = ANY (ARRAY['telegram'::text, 'whatsapp'::text]))),
     CONSTRAINT interaction_logs_security_classification_check CHECK ((security_classification = ANY (ARRAY['PUBLIC'::text, 'INTERNAL'::text, 'SENSITIVE'::text, 'CLASSIFIED'::text]))),
     CONSTRAINT interaction_logs_security_signal_check CHECK ((security_signal = ANY (ARRAY['PUBLIC'::text, 'INTERNAL'::text, 'SENSITIVE'::text, 'CLASSIFIED'::text])))
@@ -575,4 +579,5 @@ INSERT INTO public.schema_migrations (version) VALUES
     ('20260814190013'),
     ('20260815120000'),
     ('20260815140000'),
-    ('20260815140001');
+    ('20260815140001'),
+    ('20260815160000');

@@ -25,7 +25,7 @@
       "parameters": {
         "mode": "runOnceForAllItems",
         "language": "javaScript",
-        "jsCode": "const secret = $json.headers['x-telegram-bot-api-secret-token'];\nconst expected = $env.TELEGRAM_WEBHOOK_SECRET;\n\nfunction timingSafeEqualStr(a, b) {\n  if (typeof a !== 'string' || typeof b !== 'string' || a.length !== b.length) return false;\n  let result = 0;\n  for (let i = 0; i < a.length; i++) result |= a.charCodeAt(i) ^ b.charCodeAt(i);\n  return result === 0;\n}\n\nconst validSecret = !!expected && timingSafeEqualStr(secret, expected);\n\nconst update = $json.body || {};\nconst message = update.message;\nconst hasText = !!(message && message.from && typeof message.text === 'string');\n\nif (!validSecret || !hasText) {\n  return [{ json: { valid: false } }];\n}\n\nreturn [{\n  json: {\n    valid: true,\n    platform: 'telegram',\n    platform_user_id: String(message.from.id),\n    chat_id: String(message.chat.id),\n    platform_message_id: String(update.update_id),\n    text: message.text,\n    received_at: new Date(message.date * 1000).toISOString(),\n  },\n}];\n"
+        "jsCode": "const secret = $json.headers['x-telegram-bot-api-secret-token'];\nconst expected = $env.TELEGRAM_WEBHOOK_SECRET;\n\nfunction timingSafeEqualStr(a, b) {\n  if (typeof a !== 'string' || typeof b !== 'string' || a.length !== b.length) return false;\n  let result = 0;\n  for (let i = 0; i < a.length; i++) result |= a.charCodeAt(i) ^ b.charCodeAt(i);\n  return result === 0;\n}\n\nconst validSecret = !!expected && timingSafeEqualStr(secret, expected);\n\nconst update = $json.body || {};\nconst message = update.message;\nconst hasText = !!(message && message.from && typeof message.text === 'string');\n\nif (!validSecret || !hasText) {\n  return [{ json: { valid: false } }];\n}\n\nreturn [{\n  json: {\n    valid: true,\n    platform: 'telegram',\n    platform_user_id: String(message.from.id),\n    chat_id: String(message.chat.id),\n    platform_message_id: String(update.update_id),\n    text: message.text,\n    received_at: new Date(message.date * 1000).toISOString(),\n    // when our own pipeline started, distinct from received_at (when Telegram says the user\n    // sent it) - used to compute latency_ms at the final interaction_logs insert\n    processing_started_at: new Date().toISOString(),\n    // lets a later \"feedback 1\"/\"feedback 0\" reply be matched back to the specific answer\n    // being rated via platform_response_message_id, not just \"whatever this user asked most\n    // recently\"\n    reply_to_message_id: message.reply_to_message ? String(message.reply_to_message.message_id) : null,\n  },\n}];\n"
       }
     },
     {
@@ -903,9 +903,9 @@
       "parameters": {
         "resource": "database",
         "operation": "executeQuery",
-        "query": "INSERT INTO interaction_logs (\n  platform_user_id, platform, user_query, agent_response, routed_model,\n  input_tokens, output_tokens, cost_usd, security_classification,\n  sensitive_data_flagged, intent, prompt_version_id, retrieved_kb_ids,\n  cache_hit, cached_input_tokens, security_signal, security_signal_reasoning\n)\nVALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, false, $10, $11, $12::jsonb, $13, $14, $15, $16);",
+        "query": "INSERT INTO interaction_logs (\n  platform_user_id, platform, user_query, agent_response, routed_model,\n  input_tokens, output_tokens, cost_usd, security_classification,\n  sensitive_data_flagged, intent, prompt_version_id, retrieved_kb_ids,\n  cache_hit, cached_input_tokens, security_signal, security_signal_reasoning,\n  language, latency_ms\n)\nVALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, false, $10, $11, $12::jsonb, $13, $14, $15, $16, $17, EXTRACT(EPOCH FROM (now() - $18::timestamptz)) * 1000)\nRETURNING id;",
         "options": {
-          "queryReplacement": "={{ [ $('Verify & Normalize').item.json.platform_user_id, $('Verify & Normalize').item.json.platform, $('Verify & Normalize').item.json.text, $('Build Conversation Update').item.json.agent_response, $('Build Conversation Update').item.json.routed_model, $('Build Conversation Update').item.json.input_tokens, $('Build Conversation Update').item.json.output_tokens, $('Build Conversation Update').item.json.cost_usd, $('Detect Language, Classify, Detect Sensitive Data').item.json.classification, $('Build Conversation Update').item.json.intent, $('Build Conversation Update').item.json.prompt_version_id, $('Build Conversation Update').item.json.retrieved_kb_ids, $('Build Conversation Update').item.json.cache_hit, $('Build Conversation Update').item.json.cached_input_tokens, $('Build Conversation Update').item.json.security_signal, $('Build Conversation Update').item.json.security_signal_reasoning ] }}"
+          "queryReplacement": "={{ [ $('Verify & Normalize').item.json.platform_user_id, $('Verify & Normalize').item.json.platform, $('Verify & Normalize').item.json.text, $('Build Conversation Update').item.json.agent_response, $('Build Conversation Update').item.json.routed_model, $('Build Conversation Update').item.json.input_tokens, $('Build Conversation Update').item.json.output_tokens, $('Build Conversation Update').item.json.cost_usd, $('Detect Language, Classify, Detect Sensitive Data').item.json.classification, $('Build Conversation Update').item.json.intent, $('Build Conversation Update').item.json.prompt_version_id, $('Build Conversation Update').item.json.retrieved_kb_ids, $('Build Conversation Update').item.json.cache_hit, $('Build Conversation Update').item.json.cached_input_tokens, $('Build Conversation Update').item.json.security_signal, $('Build Conversation Update').item.json.security_signal_reasoning, $('Detect Language, Classify, Detect Sensitive Data').item.json.language, $('Verify & Normalize').item.json.processing_started_at ] }}"
         }
       },
       "credentials": {
@@ -940,7 +940,7 @@
       "parameters": {
         "mode": "runOnceForAllItems",
         "language": "javaScript",
-        "jsCode": "const language = $('Detect Language, Classify, Detect Sensitive Data').item.json.language;\nlet text = $('Build Conversation Update').item.json.text;\n\n// Telegram (like most bidi-aware renderers) picks a paragraph's overall direction from its\n// first strong-direction character. The system prompt asks the model to open Hebrew replies\n// with a Hebrew word, but that's not reliably followed (verified live - a model will still\n// open with an English product name like \"Claude Code\" when defining it). Prepending an\n// invisible Right-to-Left Mark (U+200F) forces correct RTL alignment deterministically,\n// regardless of what the model actually generates - a rendering problem solved in code\n// instead of left to prompt compliance.\nif (language === 'he') {\n  text = '\\u200F' + text;\n}\n\nreturn [{ json: {\n  chat_id: $('Build Conversation Update').item.json.chat_id,\n  text,\n} }];\n"
+        "jsCode": "const language = $('Detect Language, Classify, Detect Sensitive Data').item.json.language;\nlet text = $('Build Conversation Update').item.json.text;\n\n// Telegram (like most bidi-aware renderers) picks a paragraph's overall direction from its\n// first strong-direction character. The system prompt asks the model to open Hebrew replies\n// with a Hebrew word, but that's not reliably followed (verified live - a model will still\n// open with an English product name like \"Claude Code\" when defining it). Prepending an\n// invisible Right-to-Left Mark (U+200F) forces correct RTL alignment deterministically,\n// regardless of what the model actually generates - a rendering problem solved in code\n// instead of left to prompt compliance.\nif (language === 'he') {\n  text = '\\u200F' + text;\n}\n\nreturn [{ json: {\n  chat_id: $('Build Conversation Update').item.json.chat_id,\n  text,\n  // threaded through so \"Update interaction_logs (message_id)\" can correlate this row with\n  // the Telegram message_id the send actually produces, once it exists\n  interaction_log_id: $('Insert interaction_logs (final)').item.json.id,\n} }];\n"
       }
     },
     {
@@ -958,6 +958,25 @@
       },
       "credentials": {
         "telegramApi": { "id": "895b9583b757539f", "name": "Telegram Bot (bit_by_bit)" }
+      }
+    },
+    {
+      "id": "pg-update-message-id-1",
+      "name": "Update interaction_logs (message_id)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [6050, -160],
+      "onError": "continueRegularOutput",
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "UPDATE interaction_logs SET platform_response_message_id = $1 WHERE id = $2;",
+        "options": {
+          "queryReplacement": "={{ [ $json.result.message_id, $('Prepare Telegram Send').item.json.interaction_log_id ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": { "id": "2ceb9b4a66d1d908", "name": "Postgres (bit_by_bit)" }
       }
     },
     {
@@ -1238,6 +1257,9 @@
       "main": [[{ "node": "Send Telegram Message", "type": "main", "index": 0 }]]
     },
     "Send Telegram Message": {
+      "main": [[{ "node": "Update interaction_logs (message_id)", "type": "main", "index": 0 }]]
+    },
+    "Update interaction_logs (message_id)": {
       "main": [[{ "node": "Respond Success", "type": "main", "index": 0 }]]
     },
     "Insert interaction_logs (classification blocked)": {
