@@ -1,0 +1,69 @@
+{
+  "id": "weekly-content-agent-phase2",
+  "name": "Weekly Content Agent (Thursday link request)",
+  "active": true,
+  "nodes": [
+    {
+      "id": "schedule-trigger-link-request-1",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 300],
+      "parameters": {
+        "rule": {
+          "interval": [
+            { "field": "cronExpression", "expression": "0 18 * * 4" }
+          ]
+        }
+      }
+    },
+    {
+      "id": "manual-trigger-link-request-1",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [240, 460],
+      "parameters": {}
+    },
+    {
+      "id": "code-compute-next-sunday-1",
+      "name": "Compute Next Sunday",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 380],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const now = new Date();\nconst daysUntilSunday = (7 - now.getDay()) % 7 || 7;\nconst nextSunday = new Date(now);\nnextSunday.setDate(now.getDate() + daysUntilSunday);\nconst iso = nextSunday.toISOString().slice(0, 10);\nreturn [{ json: { next_sunday: iso } }];\n"
+      }
+    },
+    {
+      "id": "telegram-send-link-request-1",
+      "name": "Send Link Request",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [680, 380],
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "={{ $env.ADMIN_TELEGRAM_CHAT_ID }}",
+        "text": "={{ \"What link do you want to feature this Sunday (\" + $json.next_sunday + \")? Reply with the link.\" }}",
+        "additionalFields": {}
+      },
+      "credentials": {
+        "telegramApi": { "id": "895b9583b757539f", "name": "Telegram Bot (bit_by_bit)" }
+      }
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [[{ "node": "Compute Next Sunday", "type": "main", "index": 0 }]]
+    },
+    "Manual Trigger": {
+      "main": [[{ "node": "Compute Next Sunday", "type": "main", "index": 0 }]]
+    },
+    "Compute Next Sunday": {
+      "main": [[{ "node": "Send Link Request", "type": "main", "index": 0 }]]
+    }
+  }
+}

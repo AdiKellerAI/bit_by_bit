@@ -20,10 +20,10 @@ run_sql_file() {
 
 table_count=$(docker compose exec -T postgres psql -U "$PG_USER" -d "$PG_DB" -tAc \
   "SELECT count(*) FROM information_schema.tables WHERE table_schema='public'" | tr -d '[:space:]')
-if [ "$table_count" = "13" ]; then
-  echo "[x] all 13 tables present"
+if [ "$table_count" = "14" ]; then
+  echo "[x] all 14 tables present"
 else
-  echo "[ ] all 13 tables present (found $table_count)"
+  echo "[ ] all 14 tables present (found $table_count)"
   fail=1
 fi
 
@@ -61,6 +61,20 @@ if run_sql_file "$(dirname "$0")/06_prompt_change_proposals_status_check.sql" >/
   fail=1
 else
   echo "[x] prompt_change_proposals rejects an invalid status"
+fi
+
+if run_sql_file "$(dirname "$0")/07_weekly_content_items_content_type_check.sql" >/tmp/dbtest_07.log 2>&1; then
+  echo "[ ] weekly_content_items rejects an invalid content_type (insert unexpectedly succeeded)"
+  fail=1
+else
+  echo "[x] weekly_content_items rejects an invalid content_type"
+fi
+
+if run_sql_file "$(dirname "$0")/08_weekly_content_items_status_check.sql" >/tmp/dbtest_08.log 2>&1; then
+  echo "[ ] weekly_content_items rejects an invalid status (insert unexpectedly succeeded)"
+  fail=1
+else
+  echo "[x] weekly_content_items rejects an invalid status"
 fi
 
 if [ "$fail" -eq 0 ]; then

@@ -292,6 +292,28 @@ CREATE TABLE public.webhook_events (
 
 
 --
+-- Name: weekly_content_items; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.weekly_content_items (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    content_type text NOT NULL,
+    source_url text,
+    title text,
+    draft_description_he text,
+    final_description_he text,
+    corrected boolean DEFAULT false NOT NULL,
+    status text DEFAULT 'pending_approval'::text NOT NULL,
+    target_post_date date,
+    submitted_by text NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    approved_at timestamp with time zone,
+    CONSTRAINT weekly_content_items_content_type_check CHECK ((content_type = ANY (ARRAY['featured_link'::text, 'community_summary'::text]))),
+    CONSTRAINT weekly_content_items_status_check CHECK ((status = ANY (ARRAY['pending_approval'::text, 'approved'::text])))
+);
+
+
+--
 -- Name: budget_policy budget_policy_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -401,6 +423,14 @@ ALTER TABLE ONLY public.users
 
 ALTER TABLE ONLY public.webhook_events
     ADD CONSTRAINT webhook_events_pkey PRIMARY KEY (platform_message_id);
+
+
+--
+-- Name: weekly_content_items weekly_content_items_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.weekly_content_items
+    ADD CONSTRAINT weekly_content_items_pkey PRIMARY KEY (id);
 
 
 --
@@ -583,4 +613,5 @@ INSERT INTO public.schema_migrations (version) VALUES
     ('20260815140000'),
     ('20260815140001'),
     ('20260815160000'),
-    ('20260815201924');
+    ('20260815201924'),
+    ('20260817091401');
