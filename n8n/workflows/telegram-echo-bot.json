@@ -3199,7 +3199,7 @@
       "parameters": {
         "resource": "database",
         "operation": "executeQuery",
-        "query": "UPDATE weekly_content_items SET status = 'approved', final_description_he = draft_description_he, approved_at = now()\nWHERE id = $1\nRETURNING final_description_he, title, source_url, content_type;",
+        "query": "UPDATE weekly_content_items SET status = 'approved', final_description_he = draft_description_he, approved_at = now()\nWHERE id = $1\nRETURNING final_description_he, title, source_url, content_type, corrected;",
         "options": {
           "queryReplacement": "={{ [ $('Check Pending Draft').item.json.id ] }}"
         }
@@ -3223,7 +3223,7 @@
       "parameters": {
         "resource": "database",
         "operation": "executeQuery",
-        "query": "UPDATE weekly_content_items SET status = 'approved', final_description_he = $1, corrected = true, approved_at = now()\nWHERE id = $2\nRETURNING final_description_he, title, source_url, content_type;",
+        "query": "UPDATE weekly_content_items SET status = 'approved', final_description_he = $1, corrected = true, approved_at = now()\nWHERE id = $2\nRETURNING final_description_he, title, source_url, content_type, corrected;",
         "options": {
           "queryReplacement": "={{ [ $('Verify & Normalize').item.json.text, $('Check Pending Draft').item.json.id ] }}"
         }
@@ -3248,7 +3248,7 @@
         "resource": "message",
         "operation": "sendMessage",
         "chatId": "={{ $('Verify & Normalize').item.json.chat_id }}",
-        "text": "={{ \"Approved:\\n\\n\" + $json.title + \"\\n\" + $json.source_url + \"\\n\" + $json.final_description_he + \"\\n\\nReady to post in the WhatsApp Community.\" }}",
+        "text": "={{ $json.corrected ? (\"Approved:\\n\\n\" + $json.final_description_he + \"\\n\\nReady to post in the WhatsApp Community.\") : (\"Approved:\\n\\n\" + $json.title + \"\\n\" + $json.source_url + \"\\n\" + $json.final_description_he + \"\\n\\nReady to post in the WhatsApp Community.\") }}",
         "additionalFields": {}
       },
       "credentials": {
