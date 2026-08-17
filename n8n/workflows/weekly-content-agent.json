@@ -115,7 +115,7 @@
       "parameters": {
         "resource": "database",
         "operation": "executeQuery",
-        "query": "SELECT title, source_url, final_description_he FROM weekly_content_items\nWHERE content_type = 'community_shared_link' AND created_at > now() - interval '7 days'\nORDER BY created_at;",
+        "query": "SELECT COALESCE(g.links, '[]'::json) AS links\nFROM (SELECT 1) AS dummy\nLEFT JOIN LATERAL (\n  SELECT json_agg(json_build_object('title', title, 'source_url', source_url, 'final_description_he', final_description_he) ORDER BY created_at) AS links\n  FROM weekly_content_items\n  WHERE content_type = 'community_shared_link' AND created_at > now() - interval '7 days'\n) g ON true\nLIMIT 1;",
         "options": {}
       },
       "credentials": {
@@ -137,7 +137,7 @@
       "parameters": {
         "mode": "runOnceForAllItems",
         "language": "javaScript",
-        "jsCode": "const items = $input.all().map(i => i.json);\nreturn [{ json: { count: items.length, links: items } }];\n"
+        "jsCode": "const links = $json.links || [];\nreturn [{ json: { count: links.length, links } }];\n"
       }
     },
     {
@@ -248,6 +248,215 @@
         "operation": "sendMessage",
         "chatId": "={{ $env.ADMIN_TELEGRAM_CHAT_ID }}",
         "text": "={{ $('Format Summary Draft').item.json.draft + \"\\n\\nReply /approve to confirm, or send your own final text to use instead.\" }}",
+        "additionalFields": {}
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "895b9583b757539f",
+          "name": "Telegram Bot (bit_by_bit)"
+        }
+      }
+    },
+    {
+      "id": "schedule-trigger-survey-1",
+      "name": "Schedule Trigger (Survey)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        240,
+        900
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 12 * * 2"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "manual-trigger-survey-1",
+      "name": "Manual Trigger (Survey)",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        240,
+        1040
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "pg-select-last-survey-1",
+      "name": "Select Last Survey",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        460,
+        970
+      ],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "SELECT s.survey_type, s.results_text\nFROM (SELECT 1) AS dummy\nLEFT JOIN LATERAL (\n  SELECT survey_type, results_text FROM weekly_surveys ORDER BY created_at DESC LIMIT 1\n) s ON true\nLIMIT 1;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "2ceb9b4a66d1d908",
+          "name": "Postgres (bit_by_bit)"
+        }
+      }
+    },
+    {
+      "id": "code-determine-next-survey-type-1",
+      "name": "Determine Next Survey Type",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        580,
+        970
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const ROTATION = ['topic_pick', 'format_preference', 'content_retro', 'topic_pick', 'format_preference', 'open_interest'];\nconst lastType = $json.survey_type;\nconst lastTopicPickResults = $json.survey_type === 'topic_pick' ? $json.results_text : null;\nlet nextType;\nif (!lastType) {\n  nextType = ROTATION[0];\n} else {\n  const idx = ROTATION.indexOf(lastType);\n  nextType = ROTATION[(idx === -1 ? 0 : idx + 1) % ROTATION.length];\n}\nreturn [{ json: { survey_type: nextType, last_topic_pick_results: lastTopicPickResults } }];\n"
+      }
+    },
+    {
+      "id": "pg-gather-grounding-data-1",
+      "name": "Gather Grounding Data",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        700,
+        970
+      ],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "SELECT COALESCE(g.items, '[]'::json) AS items\nFROM (SELECT 1) AS dummy\nLEFT JOIN LATERAL (\n  SELECT json_agg(json_build_object('content_type', content_type, 'title', title, 'final_description_he', final_description_he) ORDER BY created_at DESC) AS items\n  FROM weekly_content_items\n  WHERE status = 'approved' AND created_at > now() - interval '14 days'\n) g ON true\nLIMIT 1;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "2ceb9b4a66d1d908",
+          "name": "Postgres (bit_by_bit)"
+        }
+      }
+    },
+    {
+      "id": "code-aggregate-grounding-1",
+      "name": "Aggregate Grounding Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        820,
+        970
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const items = $json.items || [];\nreturn [{ json: { recent_content: items } }];\n"
+      }
+    },
+    {
+      "id": "openai-draft-survey-1",
+      "name": "Draft Survey Question",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        940,
+        970
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'gpt-5.4-nano', max_completion_tokens: 500, messages: [ { role: 'system', content: \"You draft one short weekly survey question for a Hebrew-speaking AI/dev community, in Hebrew. You will be given the survey_type, recent shared content (may be empty), and (for topic_pick re-runs) results from the last topic_pick survey if any. Base the question only on what is given - never invent facts about what was shared. Behavior per survey_type: topic_pick = ask which topic to cover next, offering 3-5 options informed by recent content and prior results if given; format_preference = ask whether they prefer podcasts, videos, or articles, informed by the recent content mix; content_retro = ask which of last week's specific shared items they found most useful, listing the real titles given; open_interest = an open-ended question about what they want to learn about next, minimal fixed options; cadence_checkin = a short meta question about whether the weekly rhythm/format is working. Respond with ONLY a JSON object, no other text: {\\\"question\\\": \\\"<Hebrew question>\\\", \\\"options\\\": [\\\"<option 1>\\\", \\\"<option 2>\\\", ...]}. 2-5 options. Do not include an 'other' or 'not sure' option unless the survey_type is open_interest.\" }, { role: 'user', content: 'survey_type: ' + $('Determine Next Survey Type').item.json.survey_type + '\\nrecent_content: ' + JSON.stringify($('Aggregate Grounding Data').item.json.recent_content) + '\\nlast_topic_pick_results: ' + ($('Determine Next Survey Type').item.json.last_topic_pick_results || '(none)') } ] }) }}",
+        "options": {}
+      },
+      "credentials": {
+        "openAiApi": {
+          "id": "53f2686ac5199beb",
+          "name": "OpenAI (bit_by_bit)"
+        }
+      }
+    },
+    {
+      "id": "code-parse-survey-draft-1",
+      "name": "Parse Survey Draft",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1060,
+        970
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const resp = $json;\nconst text = (resp.choices && resp.choices[0] && resp.choices[0].message && resp.choices[0].message.content) || '';\nlet parsed;\ntry {\n  const cleaned = text.trim().replace(/^```json\\n?/, '').replace(/```$/, '');\n  parsed = JSON.parse(cleaned);\n} catch (e) {\n  parsed = { question: '', options: [] };\n}\nreturn [{ json: { question: parsed.question || '', options: parsed.options || [] } }];\n"
+      }
+    },
+    {
+      "id": "code-format-survey-draft-text-1",
+      "name": "Format Survey Draft Text",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1180,
+        970
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const question = $json.question;\nconst options = $json.options;\nconst lines = options.map((o, i) => (i + 1) + '. ' + o);\nconst draft = question + '\\n\\n' + lines.join('\\n');\nreturn [{ json: { draft_text: draft } }];\n"
+      }
+    },
+    {
+      "id": "pg-insert-survey-draft-1",
+      "name": "Insert Survey Draft",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1300,
+        970
+      ],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "INSERT INTO weekly_surveys (survey_type, options, draft_text, status, submitted_by)\nVALUES ($1, $2::jsonb, $3, 'pending_approval', $4)\nRETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [ $('Determine Next Survey Type').item.json.survey_type, JSON.stringify($('Parse Survey Draft').item.json.options), $('Format Survey Draft Text').item.json.draft_text, $env.ADMIN_TELEGRAM_CHAT_ID ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "2ceb9b4a66d1d908",
+          "name": "Postgres (bit_by_bit)"
+        }
+      }
+    },
+    {
+      "id": "telegram-send-survey-approval-1",
+      "name": "Send Survey For Approval",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1420,
+        970
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "={{ $env.ADMIN_TELEGRAM_CHAT_ID }}",
+        "text": "={{ $('Format Survey Draft Text').item.json.draft_text + \"\\n\\nReply /approve to confirm, or send your own final text to use instead.\" }}",
         "additionalFields": {}
       },
       "credentials": {
@@ -370,6 +579,116 @@
         [
           {
             "node": "Send Summary For Approval",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger (Survey)": {
+      "main": [
+        [
+          {
+            "node": "Select Last Survey",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual Trigger (Survey)": {
+      "main": [
+        [
+          {
+            "node": "Select Last Survey",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Select Last Survey": {
+      "main": [
+        [
+          {
+            "node": "Determine Next Survey Type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Determine Next Survey Type": {
+      "main": [
+        [
+          {
+            "node": "Gather Grounding Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gather Grounding Data": {
+      "main": [
+        [
+          {
+            "node": "Aggregate Grounding Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate Grounding Data": {
+      "main": [
+        [
+          {
+            "node": "Draft Survey Question",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Draft Survey Question": {
+      "main": [
+        [
+          {
+            "node": "Parse Survey Draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Survey Draft": {
+      "main": [
+        [
+          {
+            "node": "Format Survey Draft Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Survey Draft Text": {
+      "main": [
+        [
+          {
+            "node": "Insert Survey Draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Survey Draft": {
+      "main": [
+        [
+          {
+            "node": "Send Survey For Approval",
             "type": "main",
             "index": 0
           }

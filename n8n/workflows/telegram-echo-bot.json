@@ -3690,6 +3690,395 @@
           "name": "Google Sheets (bit_by_bit)"
         }
       }
+    },
+    {
+      "id": "pg-check-pending-survey-draft-1",
+      "name": "Check Pending Survey Draft",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1460,
+        -60
+      ],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "SELECT s.id, s.draft_text\nFROM (SELECT 1) AS dummy\nLEFT JOIN LATERAL (\n  SELECT id, draft_text FROM weekly_surveys\n  WHERE status = 'pending_approval' AND submitted_by = $1\n  ORDER BY created_at ASC LIMIT 1\n) s ON true\nLIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $('Verify & Normalize').item.json.platform_user_id ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "2ceb9b4a66d1d908",
+          "name": "Postgres (bit_by_bit)"
+        }
+      }
+    },
+    {
+      "id": "if-pending-survey-draft-found-1",
+      "name": "Pending Survey Draft Found?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1580,
+        -60
+      ],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          }
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "if-is-bare-approve-survey-1",
+      "name": "Is Bare Approve? (Survey)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1700,
+        -100
+      ],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $('Verify & Normalize').item.json.text.trim().toLowerCase() }}",
+              "rightValue": "/approve",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          }
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "pg-mark-survey-approved-drafted-1",
+      "name": "Mark Survey Approved (as drafted)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1820,
+        -140
+      ],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "UPDATE weekly_surveys SET status = 'approved', final_text = draft_text, approved_at = now()\nWHERE id = $1\nRETURNING final_text;",
+        "options": {
+          "queryReplacement": "={{ [ $('Check Pending Survey Draft').item.json.id ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "2ceb9b4a66d1d908",
+          "name": "Postgres (bit_by_bit)"
+        }
+      }
+    },
+    {
+      "id": "pg-mark-survey-approved-corrected-1",
+      "name": "Mark Survey Approved (corrected)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1820,
+        -60
+      ],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "UPDATE weekly_surveys SET status = 'approved', final_text = $1, corrected = true, approved_at = now()\nWHERE id = $2\nRETURNING final_text;",
+        "options": {
+          "queryReplacement": "={{ [ $('Verify & Normalize').item.json.text, $('Check Pending Survey Draft').item.json.id ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "2ceb9b4a66d1d908",
+          "name": "Postgres (bit_by_bit)"
+        }
+      }
+    },
+    {
+      "id": "telegram-send-survey-approval-confirm-1",
+      "name": "Send Survey Approval Confirmation",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1940,
+        -100
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "={{ $('Verify & Normalize').item.json.chat_id }}",
+        "text": "={{ \"Approved. Post this as a WhatsApp Poll:\\n\\n\" + $json.final_text }}",
+        "additionalFields": {}
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "895b9583b757539f",
+          "name": "Telegram Bot (bit_by_bit)"
+        }
+      }
+    },
+    {
+      "id": "respond-survey-approved-1",
+      "name": "Respond Survey Approved",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        2060,
+        -100
+      ],
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "survey_approved",
+        "options": {
+          "responseCode": 200
+        }
+      }
+    },
+    {
+      "id": "if-is-results-report-1",
+      "name": "Is Results Report?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1340,
+        -660
+      ],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $('Verify & Normalize').item.json.chat_id }}",
+              "rightValue": "={{ $env.ADMIN_TELEGRAM_CHAT_ID }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "leftValue": "={{ $('Verify & Normalize').item.json.text }}",
+              "rightValue": "/^\\/results\\s+.+$/i",
+              "operator": {
+                "type": "string",
+                "operation": "regex"
+              }
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          }
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "code-extract-results-text-1",
+      "name": "Extract Results Text",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1460,
+        -700
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const text = $('Verify & Normalize').item.json.text || '';\nconst m = text.match(/^\\/results\\s+(.+)$/i);\nreturn [{ json: { results_text: m ? m[1].trim() : '' } }];"
+      }
+    },
+    {
+      "id": "pg-find-awaiting-results-survey-1",
+      "name": "Find Awaiting-Results Survey",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1580,
+        -700
+      ],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "SELECT s.id, s.survey_type\nFROM (SELECT 1) AS dummy\nLEFT JOIN LATERAL (\n  SELECT id, survey_type FROM weekly_surveys\n  WHERE status = 'approved'\n  ORDER BY approved_at ASC LIMIT 1\n) s ON true\nLIMIT 1;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "2ceb9b4a66d1d908",
+          "name": "Postgres (bit_by_bit)"
+        }
+      }
+    },
+    {
+      "id": "if-awaiting-survey-found-1",
+      "name": "Awaiting Survey Found?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1700,
+        -700
+      ],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          }
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "pg-mark-results-recorded-1",
+      "name": "Mark Results Recorded",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1820,
+        -740
+      ],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "UPDATE weekly_surveys SET results_text = $1, status = 'results_recorded', results_recorded_at = now()\nWHERE id = $2;",
+        "options": {
+          "queryReplacement": "={{ [ $('Extract Results Text').item.json.results_text, $('Find Awaiting-Results Survey').item.json.id ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "2ceb9b4a66d1d908",
+          "name": "Postgres (bit_by_bit)"
+        }
+      }
+    },
+    {
+      "id": "telegram-send-results-confirm-1",
+      "name": "Send Results Confirmation",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1940,
+        -740
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "={{ $('Verify & Normalize').item.json.chat_id }}",
+        "text": "Results recorded. Thanks!",
+        "additionalFields": {}
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "895b9583b757539f",
+          "name": "Telegram Bot (bit_by_bit)"
+        }
+      }
+    },
+    {
+      "id": "respond-results-recorded-1",
+      "name": "Respond Results Recorded",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        2060,
+        -740
+      ],
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "results_recorded",
+        "options": {
+          "responseCode": 200
+        }
+      }
+    },
+    {
+      "id": "telegram-send-no-survey-awaiting-1",
+      "name": "Send No Survey Awaiting Results",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1820,
+        -660
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "={{ $('Verify & Normalize').item.json.chat_id }}",
+        "text": "No survey is currently awaiting results.",
+        "additionalFields": {}
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "895b9583b757539f",
+          "name": "Telegram Bot (bit_by_bit)"
+        }
+      }
+    },
+    {
+      "id": "respond-no-survey-awaiting-1",
+      "name": "Respond No Survey Awaiting",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        1940,
+        -660
+      ],
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "no_survey_awaiting_results",
+        "options": {
+          "responseCode": 200
+        }
+      }
     }
   ],
   "connections": {
@@ -5065,7 +5454,7 @@
         ],
         [
           {
-            "node": "Check Rate Limit",
+            "node": "Check Pending Survey Draft",
             "type": "main",
             "index": 0
           }
@@ -5210,7 +5599,7 @@
         ],
         [
           {
-            "node": "Is Link Submission?",
+            "node": "Is Results Report?",
             "type": "main",
             "index": 0
           }
@@ -5377,6 +5766,177 @@
         [
           {
             "node": "Sync To Google Sheet (Featured)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Pending Survey Draft": {
+      "main": [
+        [
+          {
+            "node": "Pending Survey Draft Found?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pending Survey Draft Found?": {
+      "main": [
+        [
+          {
+            "node": "Is Bare Approve? (Survey)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Check Rate Limit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Bare Approve? (Survey)": {
+      "main": [
+        [
+          {
+            "node": "Mark Survey Approved (as drafted)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark Survey Approved (corrected)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Survey Approved (as drafted)": {
+      "main": [
+        [
+          {
+            "node": "Send Survey Approval Confirmation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Survey Approved (corrected)": {
+      "main": [
+        [
+          {
+            "node": "Send Survey Approval Confirmation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Survey Approval Confirmation": {
+      "main": [
+        [
+          {
+            "node": "Respond Survey Approved",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Results Report?": {
+      "main": [
+        [
+          {
+            "node": "Extract Results Text",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Is Link Submission?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Results Text": {
+      "main": [
+        [
+          {
+            "node": "Find Awaiting-Results Survey",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Awaiting-Results Survey": {
+      "main": [
+        [
+          {
+            "node": "Awaiting Survey Found?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Awaiting Survey Found?": {
+      "main": [
+        [
+          {
+            "node": "Mark Results Recorded",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send No Survey Awaiting Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Results Recorded": {
+      "main": [
+        [
+          {
+            "node": "Send Results Confirmation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Results Confirmation": {
+      "main": [
+        [
+          {
+            "node": "Respond Results Recorded",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send No Survey Awaiting Results": {
+      "main": [
+        [
+          {
+            "node": "Respond No Survey Awaiting",
             "type": "main",
             "index": 0
           }

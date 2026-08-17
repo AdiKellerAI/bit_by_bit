@@ -314,6 +314,28 @@ CREATE TABLE public.weekly_content_items (
 
 
 --
+-- Name: weekly_surveys; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.weekly_surveys (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    survey_type text NOT NULL,
+    options jsonb,
+    draft_text text,
+    final_text text,
+    corrected boolean DEFAULT false NOT NULL,
+    status text DEFAULT 'pending_approval'::text NOT NULL,
+    results_text text,
+    submitted_by text NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    approved_at timestamp with time zone,
+    results_recorded_at timestamp with time zone,
+    CONSTRAINT weekly_surveys_status_check CHECK ((status = ANY (ARRAY['pending_approval'::text, 'approved'::text, 'results_recorded'::text]))),
+    CONSTRAINT weekly_surveys_survey_type_check CHECK ((survey_type = ANY (ARRAY['topic_pick'::text, 'format_preference'::text, 'content_retro'::text, 'open_interest'::text, 'cadence_checkin'::text])))
+);
+
+
+--
 -- Name: budget_policy budget_policy_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -431,6 +453,14 @@ ALTER TABLE ONLY public.webhook_events
 
 ALTER TABLE ONLY public.weekly_content_items
     ADD CONSTRAINT weekly_content_items_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: weekly_surveys weekly_surveys_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.weekly_surveys
+    ADD CONSTRAINT weekly_surveys_pkey PRIMARY KEY (id);
 
 
 --
@@ -615,4 +645,5 @@ INSERT INTO public.schema_migrations (version) VALUES
     ('20260815160000'),
     ('20260815201924'),
     ('20260817091401'),
-    ('20260817100855');
+    ('20260817100855'),
+    ('20260817105029');

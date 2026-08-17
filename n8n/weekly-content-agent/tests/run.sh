@@ -185,6 +185,102 @@ fi
 psql_exec -c "DELETE FROM weekly_content_items WHERE id IN ('$RELAY_ITEM', '$SUMMARY_ITEM', '$FIFO_OLD', '$FIFO_NEW');" >/dev/null
 psql_exec -c "DELETE FROM knowledge_base WHERE url = 'https://example.com/c';" >/dev/null
 
+# --- Phase 4: /results non-admin gate ---
+RESULTS_NONADMIN_ID="96$(date +%s)"
+RESULTS_UPDATE_ID="97$(date +%s)"
+curl -s -o /dev/null -X POST "$URL" \
+  -H "Content-Type: application/json" \
+  -H "X-Telegram-Bot-Api-Secret-Token: $SECRET" \
+  -d "{\"update_id\": $RESULTS_UPDATE_ID, \"message\": {\"message_id\": 1, \"from\": {\"id\": $RESULTS_NONADMIN_ID}, \"chat\": {\"id\": $RESULTS_NONADMIN_ID, \"type\": \"private\"}, \"date\": 1735689600, \"text\": \"/results should not work\"}}"
+sleep 1
+results_nonadmin_row=$(psql_exec -tAc "SELECT intent FROM interaction_logs WHERE platform_user_id = '$RESULTS_NONADMIN_ID' ORDER BY created_at DESC LIMIT 1" | head -1 | tr -d '[:space:]')
+if [ "$results_nonadmin_row" = "qa_disabled" ]; then
+  echo "[x] a non-admin's /results falls through to the ordinary pipeline"
+else
+  echo "[ ] a non-admin's /results falls through correctly (got intent: $results_nonadmin_row)"
+  fail=1
+fi
+psql_exec -c "DELETE FROM interaction_logs WHERE platform_user_id = '$RESULTS_NONADMIN_ID';" >/dev/null
+psql_exec -c "DELETE FROM webhook_events WHERE platform_message_id = '$RESULTS_UPDATE_ID';" >/dev/null
+psql_exec -c "DELETE FROM users WHERE platform_user_id = '$RESULTS_NONADMIN_ID';" >/dev/null
+
+# --- Phase 4: survey type rotation logic (mirrors "Determine Next Survey Type") ---
+rotation_check=$(docker compose exec -T n8n node -e "
+function nextType(lastType) {
+  const ROTATION = ['topic_pick', 'format_preference', 'content_retro', 'topic_pick', 'format_preference', 'open_interest'];
+  if (!lastType) return ROTATION[0];
+  const idx = ROTATION.indexOf(lastType);
+  return ROTATION[(idx === -1 ? 0 : idx + 1) % ROTATION.length];
+}
+console.log(nextType(null) === 'topic_pick' && nextType('topic_pick') === 'format_preference' && nextType('open_interest') === 'topic_pick' && nextType('cadence_checkin') === 'topic_pick' ? 'OK' : 'FAIL');
+" 2>&1)
+if [ "$rotation_check" = "OK" ]; then
+  echo "[x] survey type rotation logic produces the expected sequence"
+else
+  echo "[ ] survey type rotation logic (got: $rotation_check)"
+  fail=1
+fi
+
+# --- Phase 4: Mark Survey Approved as-drafted vs corrected state transitions ---
+SURVEY_A=$(psql_exec -tAc "
+INSERT INTO weekly_surveys (survey_type, options, draft_text, status, submitted_by)
+VALUES ('topic_pick', '[\"A\", \"B\"]', 'Draft A', 'pending_approval', 'test-admin')
+RETURNING id;" | head -1 | tr -d '[:space:]')
+psql_exec -c "UPDATE weekly_surveys SET status = 'approved', final_text = draft_text, approved_at = now() WHERE id = '$SURVEY_A';" >/dev/null
+survey_a_row=$(psql_exec -tAc "SELECT status || '|' || corrected::text || '|' || (final_text = draft_text)::text FROM weekly_surveys WHERE id = '$SURVEY_A';" | head -1 | tr -d '[:space:]')
+if [ "$survey_a_row" = "approved|false|true" ]; then
+  echo "[x] survey approve-as-drafted sets final_text/status correctly, corrected stays false"
+else
+  echo "[ ] survey approve-as-drafted state transition (got: $survey_a_row)"
+  fail=1
+fi
+
+SURVEY_B=$(psql_exec -tAc "
+INSERT INTO weekly_surveys (survey_type, options, draft_text, status, submitted_by)
+VALUES ('format_preference', '[\"A\", \"B\"]', 'Draft B', 'pending_approval', 'test-admin')
+RETURNING id;" | head -1 | tr -d '[:space:]')
+psql_exec -c "UPDATE weekly_surveys SET status = 'approved', final_text = 'My override', corrected = true, approved_at = now() WHERE id = '$SURVEY_B';" >/dev/null
+survey_b_row=$(psql_exec -tAc "SELECT status || '|' || corrected::text || '|' || final_text FROM weekly_surveys WHERE id = '$SURVEY_B';" | head -1 | tr -d '[:space:]')
+if [ "$survey_b_row" = "approved|true|Myoverride" ]; then
+  echo "[x] survey approve-with-correction sets the sender's own text, corrected=true"
+else
+  echo "[ ] survey approve-with-correction state transition (got: $survey_b_row)"
+  fail=1
+fi
+
+# --- Phase 4: Find Awaiting-Results Survey FIFO ordering ---
+psql_exec -c "UPDATE weekly_surveys SET approved_at = now() - interval '1 hour' WHERE id = '$SURVEY_A';" >/dev/null
+awaiting_resolved=$(psql_exec -tAc "
+SELECT s.id
+FROM (SELECT 1) AS dummy
+LEFT JOIN LATERAL (
+  SELECT id FROM weekly_surveys WHERE status = 'approved' ORDER BY approved_at ASC LIMIT 1
+) s ON true
+LIMIT 1;" | head -1 | tr -d '[:space:]')
+if [ "$awaiting_resolved" = "$SURVEY_A" ]; then
+  echo "[x] Find Awaiting-Results Survey resolves the oldest approved survey first (FIFO)"
+else
+  echo "[ ] Find Awaiting-Results Survey FIFO ordering (expected: $SURVEY_A, got: $awaiting_resolved)"
+  fail=1
+fi
+
+# --- Phase 4: Gather Grounding Data / Select Community Shared Links 0-rows guarantee ---
+zero_rows_guarantee=$(psql_exec -tAc "
+SELECT COALESCE(g.items, '[]'::json) AS items
+FROM (SELECT 1) AS dummy
+LEFT JOIN LATERAL (
+  SELECT json_agg(id) AS items FROM weekly_content_items WHERE id = '00000000-0000-0000-0000-000000000000'
+) g ON true
+LIMIT 1;" | head -1 | tr -d '[:space:]')
+if [ "$zero_rows_guarantee" = "[]" ]; then
+  echo "[x] the 0-rows defensive query pattern always returns exactly one row with an empty array"
+else
+  echo "[ ] 0-rows defensive query pattern (got: $zero_rows_guarantee)"
+  fail=1
+fi
+
+psql_exec -c "DELETE FROM weekly_surveys WHERE id IN ('$SURVEY_A', '$SURVEY_B');" >/dev/null
+
 if [ "$fail" -eq 0 ]; then
   echo "All weekly content agent tests passed."
 else
