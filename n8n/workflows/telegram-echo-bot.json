@@ -623,6 +623,53 @@
       }
     },
     {
+      "id": "pg-interaction-log-qa-disabled-1",
+      "name": "Insert interaction_logs (qa disabled)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1540, -160],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "INSERT INTO interaction_logs (platform_user_id, platform, user_query, sensitive_data_flagged, intent, language, security_classification)\nVALUES ($1, $2, $3, false, 'qa_disabled', $4, $5);",
+        "options": {
+          "queryReplacement": "={{ [$('Verify & Normalize').item.json.platform_user_id, $('Verify & Normalize').item.json.platform, $('Verify & Normalize').item.json.text, $('Detect Language, Classify, Detect Sensitive Data').item.json.language, $('Detect Language, Classify, Detect Sensitive Data').item.json.classification] }}"
+        }
+      },
+      "credentials": {
+        "postgres": { "id": "2ceb9b4a66d1d908", "name": "Postgres (bit_by_bit)" }
+      }
+    },
+    {
+      "id": "telegram-qa-disabled-reply-1",
+      "name": "Send Q&A Disabled Reply",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [1660, -160],
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "={{ $('Verify & Normalize').item.json.chat_id }}",
+        "text": "={{ \"\\u05d4\\u05d1\\u05d5\\u05d8 \\u05d4\\u05d6\\u05d4 \\u05dc\\u05d0 \\u05e2\\u05d5\\u05e0\\u05d4 \\u05e2\\u05dc \\u05e9\\u05d0\\u05dc\\u05d5\\u05ea \\u05db\\u05e8\\u05d2\\u05e2. / This bot doesn't answer questions right now.\" }}",
+        "additionalFields": {}
+      },
+      "credentials": {
+        "telegramApi": { "id": "895b9583b757539f", "name": "Telegram Bot (bit_by_bit)" }
+      }
+    },
+    {
+      "id": "respond-qa-disabled-1",
+      "name": "Respond Q&A Disabled",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [1780, -160],
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "qa_disabled",
+        "options": { "responseCode": 200 }
+      }
+    },
+    {
       "id": "if-classification-public-1",
       "name": "Classification Is PUBLIC?",
       "type": "n8n-nodes-base.if",
@@ -3097,7 +3144,29 @@
         ],
         [
           {
-            "node": "Classification Is PUBLIC?",
+            "node": "Insert interaction_logs (qa disabled)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert interaction_logs (qa disabled)": {
+      "main": [
+        [
+          {
+            "node": "Send Q&A Disabled Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Q&A Disabled Reply": {
+      "main": [
+        [
+          {
+            "node": "Respond Q&A Disabled",
             "type": "main",
             "index": 0
           }
