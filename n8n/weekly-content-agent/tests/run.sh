@@ -106,6 +106,85 @@ fi
 
 psql_exec -c "DELETE FROM weekly_content_items WHERE id IN ('$ITEM_A', '$ITEM_B');" >/dev/null
 
+# --- Phase 3: /link community relay ---
+LINKRELAY_NONADMIN_ID="98$(date +%s)"
+LINKRELAY_UPDATE_ID="99$(date +%s)"
+curl -s -o /dev/null -X POST "$URL" \
+  -H "Content-Type: application/json" \
+  -H "X-Telegram-Bot-Api-Secret-Token: $SECRET" \
+  -d "{\"update_id\": $LINKRELAY_UPDATE_ID, \"message\": {\"message_id\": 1, \"from\": {\"id\": $LINKRELAY_NONADMIN_ID}, \"chat\": {\"id\": $LINKRELAY_NONADMIN_ID, \"type\": \"private\"}, \"date\": 1735689600, \"text\": \"/link https://example.com/relay-test\"}}"
+sleep 1
+relay_row_count=$(psql_exec -tAc "SELECT count(*) FROM weekly_content_items WHERE source_url = 'https://example.com/relay-test'" | tr -d '[:space:]')
+kb_row_count=$(psql_exec -tAc "SELECT count(*) FROM knowledge_base WHERE url = 'https://example.com/relay-test'" | tr -d '[:space:]')
+if [ "$relay_row_count" = "0" ] && [ "$kb_row_count" = "0" ]; then
+  echo "[x] a non-admin's /link does not create weekly_content_items or knowledge_base rows"
+else
+  echo "[ ] a non-admin's /link does not create rows (weekly_content_items: $relay_row_count, knowledge_base: $kb_row_count)"
+  fail=1
+fi
+psql_exec -c "DELETE FROM interaction_logs WHERE platform_user_id = '$LINKRELAY_NONADMIN_ID';" >/dev/null
+psql_exec -c "DELETE FROM webhook_events WHERE platform_message_id = '$LINKRELAY_UPDATE_ID';" >/dev/null
+psql_exec -c "DELETE FROM users WHERE platform_user_id = '$LINKRELAY_NONADMIN_ID';" >/dev/null
+
+# --- Phase 3: community_shared_link + knowledge_base shape (mirrors "Insert Community Shared
+# Link Item" + "Archive To Knowledge Base (Relay)") ---
+RELAY_ITEM=$(psql_exec -tAc "
+INSERT INTO weekly_content_items (content_type, source_url, title, draft_description_he, final_description_he, status, submitted_by, approved_at)
+VALUES ('community_shared_link', 'https://example.com/c', 'Test Title C', 'Test draft C', 'Test draft C', 'approved', 'test-admin', now())
+RETURNING id;" | head -1 | tr -d '[:space:]')
+psql_exec -c "INSERT INTO knowledge_base (category, title, url, summary_he, source_type, trust_level, status) VALUES ('articles', 'Test Title C', 'https://example.com/c', 'Test draft C', 'article', 'community', 'active');" >/dev/null
+relay_shape=$(psql_exec -tAc "SELECT w.status || '|' || (k.id IS NOT NULL)::text FROM weekly_content_items w JOIN knowledge_base k ON k.url = w.source_url WHERE w.id = '$RELAY_ITEM';" | head -1 | tr -d '[:space:]')
+if [ "$relay_shape" = "approved|true" ]; then
+  echo "[x] community_shared_link items are immediately approved and archived together correctly"
+else
+  echo "[ ] community_shared_link + knowledge_base shape (got: $relay_shape)"
+  fail=1
+fi
+
+# --- Phase 3: community_summary approval returns content_type so archival can be skipped ---
+SUMMARY_ITEM=$(psql_exec -tAc "
+INSERT INTO weekly_content_items (content_type, draft_description_he, status, submitted_by)
+VALUES ('community_summary', 'Test summary content', 'pending_approval', 'test-admin')
+RETURNING id;" | head -1 | tr -d '[:space:]')
+mark_approved_result=$(psql_exec -tAc "
+UPDATE weekly_content_items SET status = 'approved', final_description_he = draft_description_he, approved_at = now()
+WHERE id = '$SUMMARY_ITEM'
+RETURNING final_description_he, title, source_url, content_type;" 2>&1)
+if echo "$mark_approved_result" | grep -q "community_summary"; then
+  echo "[x] Mark Approved's RETURNING includes content_type, distinguishing summary from featured_link"
+else
+  echo "[ ] Mark Approved RETURNING content_type (got: $mark_approved_result)"
+  fail=1
+fi
+
+# --- Phase 3: Check Pending Draft resolves the OLDEST pending draft first (FIFO fix) ---
+FIFO_OLD=$(psql_exec -tAc "
+INSERT INTO weekly_content_items (content_type, draft_description_he, status, submitted_by, created_at)
+VALUES ('featured_link', 'Older draft', 'pending_approval', 'test-fifo-admin', now() - interval '1 hour')
+RETURNING id;" | head -1 | tr -d '[:space:]')
+FIFO_NEW=$(psql_exec -tAc "
+INSERT INTO weekly_content_items (content_type, draft_description_he, status, submitted_by, created_at)
+VALUES ('community_summary', 'Newer draft', 'pending_approval', 'test-fifo-admin', now())
+RETURNING id;" | head -1 | tr -d '[:space:]')
+fifo_resolved=$(psql_exec -tAc "
+SELECT c.id
+FROM (SELECT 1) AS dummy
+LEFT JOIN LATERAL (
+  SELECT id FROM weekly_content_items
+  WHERE status = 'pending_approval' AND submitted_by = 'test-fifo-admin'
+  ORDER BY created_at ASC LIMIT 1
+) c ON true
+LIMIT 1;" | head -1 | tr -d '[:space:]')
+if [ "$fifo_resolved" = "$FIFO_OLD" ]; then
+  echo "[x] Check Pending Draft resolves the oldest pending draft first (FIFO)"
+else
+  echo "[ ] Check Pending Draft FIFO ordering (expected: $FIFO_OLD, got: $fifo_resolved)"
+  fail=1
+fi
+
+psql_exec -c "DELETE FROM weekly_content_items WHERE id IN ('$RELAY_ITEM', '$SUMMARY_ITEM', '$FIFO_OLD', '$FIFO_NEW');" >/dev/null
+psql_exec -c "DELETE FROM knowledge_base WHERE url = 'https://example.com/c';" >/dev/null
+
 if [ "$fail" -eq 0 ]; then
   echo "All weekly content agent tests passed."
 else

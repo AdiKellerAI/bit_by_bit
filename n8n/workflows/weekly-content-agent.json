@@ -8,11 +8,17 @@
       "name": "Schedule Trigger",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
-      "position": [240, 300],
+      "position": [
+        240,
+        300
+      ],
       "parameters": {
         "rule": {
           "interval": [
-            { "field": "cronExpression", "expression": "0 18 * * 4" }
+            {
+              "field": "cronExpression",
+              "expression": "0 18 * * 4"
+            }
           ]
         }
       }
@@ -22,7 +28,10 @@
       "name": "Manual Trigger",
       "type": "n8n-nodes-base.manualTrigger",
       "typeVersion": 1,
-      "position": [240, 460],
+      "position": [
+        240,
+        460
+      ],
       "parameters": {}
     },
     {
@@ -30,7 +39,10 @@
       "name": "Compute Next Sunday",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [460, 380],
+      "position": [
+        460,
+        380
+      ],
       "parameters": {
         "mode": "runOnceForAllItems",
         "language": "javaScript",
@@ -42,7 +54,10 @@
       "name": "Send Link Request",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
-      "position": [680, 380],
+      "position": [
+        680,
+        380
+      ],
       "parameters": {
         "resource": "message",
         "operation": "sendMessage",
@@ -51,19 +66,315 @@
         "additionalFields": {}
       },
       "credentials": {
-        "telegramApi": { "id": "895b9583b757539f", "name": "Telegram Bot (bit_by_bit)" }
+        "telegramApi": {
+          "id": "895b9583b757539f",
+          "name": "Telegram Bot (bit_by_bit)"
+        }
+      }
+    },
+    {
+      "id": "schedule-trigger-summary-1",
+      "name": "Schedule Trigger (Summary)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        240,
+        620
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 17 * * 4"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "manual-trigger-summary-1",
+      "name": "Manual Trigger (Summary)",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        240,
+        760
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "pg-select-community-links-1",
+      "name": "Select Community Shared Links",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        460,
+        690
+      ],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "SELECT title, source_url, final_description_he FROM weekly_content_items\nWHERE content_type = 'community_shared_link' AND created_at > now() - interval '7 days'\nORDER BY created_at;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "2ceb9b4a66d1d908",
+          "name": "Postgres (bit_by_bit)"
+        }
+      }
+    },
+    {
+      "id": "code-aggregate-community-links-1",
+      "name": "Aggregate Community Links",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        580,
+        690
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const items = $input.all().map(i => i.json);\nreturn [{ json: { count: items.length, links: items } }];\n"
+      }
+    },
+    {
+      "id": "if-any-community-links-1",
+      "name": "Any Community Links?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        700,
+        690
+      ],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.count }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          }
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "telegram-send-no-links-1",
+      "name": "Send No Links This Week",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        820,
+        760
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "={{ $env.ADMIN_TELEGRAM_CHAT_ID }}",
+        "text": "No community-shared links this week.",
+        "additionalFields": {}
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "895b9583b757539f",
+          "name": "Telegram Bot (bit_by_bit)"
+        }
+      }
+    },
+    {
+      "id": "code-format-summary-draft-1",
+      "name": "Format Summary Draft",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        820,
+        620
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const links = $('Aggregate Community Links').item.json.links;\nconst lines = links.map(l => l.title + '\\n' + l.final_description_he + '\\n' + l.source_url);\nconst draft = 'Community-shared links this week:\\n\\n' + lines.join('\\n\\n');\nreturn [{ json: { draft } }];\n"
+      }
+    },
+    {
+      "id": "pg-insert-summary-draft-1",
+      "name": "Insert Summary Draft Item",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        940,
+        620
+      ],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "INSERT INTO weekly_content_items (content_type, draft_description_he, status, submitted_by)\nVALUES ('community_summary', $1, 'pending_approval', $2)\nRETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [ $('Format Summary Draft').item.json.draft, $env.ADMIN_TELEGRAM_CHAT_ID ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "2ceb9b4a66d1d908",
+          "name": "Postgres (bit_by_bit)"
+        }
+      }
+    },
+    {
+      "id": "telegram-send-summary-approval-1",
+      "name": "Send Summary For Approval",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1060,
+        620
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "={{ $env.ADMIN_TELEGRAM_CHAT_ID }}",
+        "text": "={{ $('Format Summary Draft').item.json.draft + \"\\n\\nReply /approve to confirm, or send your own final text to use instead.\" }}",
+        "additionalFields": {}
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "895b9583b757539f",
+          "name": "Telegram Bot (bit_by_bit)"
+        }
       }
     }
   ],
   "connections": {
     "Schedule Trigger": {
-      "main": [[{ "node": "Compute Next Sunday", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Compute Next Sunday",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Manual Trigger": {
-      "main": [[{ "node": "Compute Next Sunday", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Compute Next Sunday",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Compute Next Sunday": {
-      "main": [[{ "node": "Send Link Request", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Send Link Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger (Summary)": {
+      "main": [
+        [
+          {
+            "node": "Select Community Shared Links",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual Trigger (Summary)": {
+      "main": [
+        [
+          {
+            "node": "Select Community Shared Links",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Select Community Shared Links": {
+      "main": [
+        [
+          {
+            "node": "Aggregate Community Links",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate Community Links": {
+      "main": [
+        [
+          {
+            "node": "Any Community Links?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Any Community Links?": {
+      "main": [
+        [
+          {
+            "node": "Format Summary Draft",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send No Links This Week",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Summary Draft": {
+      "main": [
+        [
+          {
+            "node": "Insert Summary Draft Item",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Summary Draft Item": {
+      "main": [
+        [
+          {
+            "node": "Send Summary For Approval",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   }
 }

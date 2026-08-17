@@ -2956,7 +2956,7 @@
       "parameters": {
         "resource": "database",
         "operation": "executeQuery",
-        "query": "SELECT c.id, c.draft_description_he, c.title, c.source_url\nFROM (SELECT 1) AS dummy\nLEFT JOIN LATERAL (\n  SELECT id, draft_description_he, title, source_url FROM weekly_content_items\n  WHERE status = 'pending_approval' AND submitted_by = $1\n  ORDER BY created_at DESC LIMIT 1\n) c ON true\nLIMIT 1;",
+        "query": "SELECT c.id, c.draft_description_he, c.title, c.source_url\nFROM (SELECT 1) AS dummy\nLEFT JOIN LATERAL (\n  SELECT id, draft_description_he, title, source_url FROM weekly_content_items\n  WHERE status = 'pending_approval' AND submitted_by = $1\n  ORDER BY created_at ASC LIMIT 1\n) c ON true\nLIMIT 1;",
         "options": {
           "queryReplacement": "={{ [ $('Verify & Normalize').item.json.platform_user_id ] }}"
         }
@@ -3199,7 +3199,7 @@
       "parameters": {
         "resource": "database",
         "operation": "executeQuery",
-        "query": "UPDATE weekly_content_items SET status = 'approved', final_description_he = draft_description_he, approved_at = now()\nWHERE id = $1\nRETURNING final_description_he, title, source_url;",
+        "query": "UPDATE weekly_content_items SET status = 'approved', final_description_he = draft_description_he, approved_at = now()\nWHERE id = $1\nRETURNING final_description_he, title, source_url, content_type;",
         "options": {
           "queryReplacement": "={{ [ $('Check Pending Draft').item.json.id ] }}"
         }
@@ -3223,7 +3223,7 @@
       "parameters": {
         "resource": "database",
         "operation": "executeQuery",
-        "query": "UPDATE weekly_content_items SET status = 'approved', final_description_he = $1, corrected = true, approved_at = now()\nWHERE id = $2\nRETURNING final_description_he, title, source_url;",
+        "query": "UPDATE weekly_content_items SET status = 'approved', final_description_he = $1, corrected = true, approved_at = now()\nWHERE id = $2\nRETURNING final_description_he, title, source_url, content_type;",
         "options": {
           "queryReplacement": "={{ [ $('Verify & Normalize').item.json.text, $('Check Pending Draft').item.json.id ] }}"
         }
@@ -3272,6 +3272,422 @@
         "responseBody": "weekly_content_approved",
         "options": {
           "responseCode": 200
+        }
+      }
+    },
+    {
+      "id": "if-is-link-relay-1",
+      "name": "Is Link Relay?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1340,
+        -520
+      ],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $('Verify & Normalize').item.json.chat_id }}",
+              "rightValue": "={{ $env.ADMIN_TELEGRAM_CHAT_ID }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "leftValue": "={{ $('Verify & Normalize').item.json.text }}",
+              "rightValue": "/^\\/link\\s+https?:\\/\\/\\S+$/i",
+              "operator": {
+                "type": "string",
+                "operation": "regex"
+              }
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          }
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "code-extract-relay-url-1",
+      "name": "Extract Relay URL",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1460,
+        -580
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const text = $('Verify & Normalize').item.json.text || '';\nconst m = text.match(/^\\/link\\s+(\\S+)$/i);\nreturn [{ json: { relay_url: m ? m[1] : '' } }];"
+      }
+    },
+    {
+      "id": "http-fetch-relay-link-1",
+      "name": "Fetch Relay Link Content",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1580,
+        -580
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Extract Relay URL').item.json.relay_url }}",
+        "sendHeaders": true,
+        "specifyHeaders": "keypair",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 10000,
+          "response": {
+            "response": {
+              "responseFormat": "text",
+              "outputPropertyName": "data",
+              "neverError": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "code-extract-relay-title-desc-1",
+      "name": "Extract Relay Title & Description",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1700,
+        -580
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const html = $json.data || '';\nfunction extractTag(re) {\n  const m = html.match(re);\n  return m ? m[1].trim() : null;\n}\nconst title = extractTag(/<title[^>]*>([^<]*)<\\/title>/i)\n  || extractTag(/<meta[^>]+property=[\"']og:title[\"'][^>]+content=[\"']([^\"']*)[\"']/i)\n  || extractTag(/<meta[^>]+content=[\"']([^\"']*)[\"'][^>]+property=[\"']og:title[\"']/i);\nconst description = extractTag(/<meta[^>]+property=[\"']og:description[\"'][^>]+content=[\"']([^\"']*)[\"']/i)\n  || extractTag(/<meta[^>]+content=[\"']([^\"']*)[\"'][^>]+property=[\"']og:description[\"']/i)\n  || extractTag(/<meta[^>]+name=[\"']description[\"'][^>]+content=[\"']([^\"']*)[\"']/i)\n  || extractTag(/<meta[^>]+content=[\"']([^\"']*)[\"'][^>]+name=[\"']description[\"']/i);\nreturn [{ json: { title: title || null, extracted_text: description || null } }];"
+      }
+    },
+    {
+      "id": "openai-draft-relay-hebrew-desc-1",
+      "name": "Draft Relay Hebrew Description",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1820,
+        -580
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'gpt-5.4-nano', max_completion_tokens: 200, messages: [ { role: 'system', content: 'You write one short, honest Hebrew sentence describing a shared link for an AI/dev community. You will be given an extracted page title and description text (may be empty). Base your sentence only on what is given - if both are empty or unhelpful, respond with exactly: \\u05dc\\u05d0 \\u05e0\\u05d9\\u05ea\\u05df \\u05dc\\u05d9\\u05e6\\u05d5\\u05e8 \\u05ea\\u05e7\\u05e6\\u05d9\\u05e8 \\u05d0\\u05d5\\u05d8\\u05d5\\u05de\\u05d8\\u05d9 \\u05dc\\u05e7\\u05d9\\u05e9\\u05d5\\u05e8 \\u05d6\\u05d4. Do not invent details. Output only the sentence, nothing else.' }, { role: 'user', content: 'Title: ' + ($json.title || '(none)') + '\\\\nDescription: ' + ($json.extracted_text || '(none)') } ] }) }}",
+        "options": {}
+      },
+      "credentials": {
+        "openAiApi": {
+          "id": "53f2686ac5199beb",
+          "name": "OpenAI (bit_by_bit)"
+        }
+      }
+    },
+    {
+      "id": "code-parse-relay-drafted-desc-1",
+      "name": "Parse Relay Drafted Description",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1940,
+        -580
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const resp = $json;\nconst text = (resp.choices && resp.choices[0] && resp.choices[0].message && resp.choices[0].message.content) || '';\nreturn [{ json: { draft_description_he: text.trim() } }];"
+      }
+    },
+    {
+      "id": "code-classify-source-type-relay-1",
+      "name": "Classify Source Type",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2060,
+        -580
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const url = $('Extract Relay URL').item.json.relay_url || '';\nlet source_type = 'article';\nlet category = 'articles';\nif (/youtube\\.com|youtu\\.be/i.test(url)) { source_type = 'video'; category = 'videos'; }\nelse if (/spotify\\.com|podcasts\\.apple\\.com|anchor\\.fm/i.test(url)) { source_type = 'podcast'; category = 'podcasts'; }\nreturn [{ json: { source_type, category } }];"
+      }
+    },
+    {
+      "id": "pg-insert-community-shared-link-1",
+      "name": "Insert Community Shared Link Item",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2180,
+        -580
+      ],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "INSERT INTO weekly_content_items (content_type, source_url, title, draft_description_he, final_description_he, status, submitted_by, approved_at)\nVALUES ('community_shared_link', $1, $2, $3, $3, 'approved', $4, now())\nRETURNING id, title, source_url, final_description_he;",
+        "options": {
+          "queryReplacement": "={{ [ $('Extract Relay URL').item.json.relay_url, $('Extract Relay Title & Description').item.json.title, $('Parse Relay Drafted Description').item.json.draft_description_he, $('Verify & Normalize').item.json.platform_user_id ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "2ceb9b4a66d1d908",
+          "name": "Postgres (bit_by_bit)"
+        }
+      }
+    },
+    {
+      "id": "pg-archive-kb-relay-1",
+      "name": "Archive To Knowledge Base (Relay)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2300,
+        -580
+      ],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "INSERT INTO knowledge_base (category, title, url, summary_he, source_type, trust_level, status)\nVALUES ($1, $2, $3, $4, $5, 'community', 'active');",
+        "options": {
+          "queryReplacement": "={{ [ $('Classify Source Type').item.json.category, $json.title, $json.source_url, $json.final_description_he, $('Classify Source Type').item.json.source_type ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "2ceb9b4a66d1d908",
+          "name": "Postgres (bit_by_bit)"
+        }
+      }
+    },
+    {
+      "id": "code-format-sheet-row-relay-1",
+      "name": "Format Sheet Row (Relay)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2420,
+        -580
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "return [{ json: {\n  date_added: new Date().toISOString().slice(0, 10),\n  category: $('Classify Source Type').item.json.category,\n  title: $('Insert Community Shared Link Item').item.json.title,\n  url: $('Insert Community Shared Link Item').item.json.source_url,\n  description: $('Insert Community Shared Link Item').item.json.final_description_he,\n  source_type: $('Classify Source Type').item.json.source_type,\n  content_type: 'community_shared_link',\n} }];"
+      }
+    },
+    {
+      "id": "gsheet-sync-relay-1",
+      "name": "Sync To Google Sheet (Relay)",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 3,
+      "position": [
+        2540,
+        -580
+      ],
+      "parameters": {
+        "authentication": "serviceAccount",
+        "resource": "sheet",
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "167Yip35QjI2Zpfwiy4InOLEuly4nUGx4BRTQE8ZShuk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "id",
+          "value": "0"
+        },
+        "dataMode": "autoMapInputData",
+        "options": {}
+      },
+      "credentials": {
+        "googleApi": {
+          "id": "9d2f6c81e4a5b730",
+          "name": "Google Sheets (bit_by_bit)"
+        }
+      }
+    },
+    {
+      "id": "telegram-send-relay-confirm-1",
+      "name": "Send Relay Confirmation",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2660,
+        -580
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "={{ $('Verify & Normalize').item.json.chat_id }}",
+        "text": "={{ \"Logged: \" + $('Insert Community Shared Link Item').item.json.title }}",
+        "additionalFields": {}
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "895b9583b757539f",
+          "name": "Telegram Bot (bit_by_bit)"
+        }
+      }
+    },
+    {
+      "id": "respond-link-relayed-1",
+      "name": "Respond Link Relayed",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        2780,
+        -580
+      ],
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "link_relayed",
+        "options": {
+          "responseCode": 200
+        }
+      }
+    },
+    {
+      "id": "if-is-featured-link-approval-1",
+      "name": "Is Featured Link Approval?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2060,
+        -280
+      ],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.content_type }}",
+              "rightValue": "featured_link",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          }
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "code-classify-source-type-featured-1",
+      "name": "Classify Source Type (Featured)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2180,
+        -240
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const url = $json.source_url || '';\nlet source_type = 'article';\nlet category = 'articles';\nif (/youtube\\.com|youtu\\.be/i.test(url)) { source_type = 'video'; category = 'videos'; }\nelse if (/spotify\\.com|podcasts\\.apple\\.com|anchor\\.fm/i.test(url)) { source_type = 'podcast'; category = 'podcasts'; }\nreturn [{ json: { title: $json.title, source_url: $json.source_url, final_description_he: $json.final_description_he, source_type, category } }];"
+      }
+    },
+    {
+      "id": "pg-archive-kb-featured-1",
+      "name": "Archive To Knowledge Base (Featured)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2300,
+        -240
+      ],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "INSERT INTO knowledge_base (category, title, url, summary_he, source_type, trust_level, status)\nVALUES ($1, $2, $3, $4, $5, 'community', 'active');",
+        "options": {
+          "queryReplacement": "={{ [ $json.category, $json.title, $json.source_url, $json.final_description_he, $json.source_type ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "2ceb9b4a66d1d908",
+          "name": "Postgres (bit_by_bit)"
+        }
+      }
+    },
+    {
+      "id": "code-format-sheet-row-featured-1",
+      "name": "Format Sheet Row (Featured)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2420,
+        -240
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "return [{ json: {\n  date_added: new Date().toISOString().slice(0, 10),\n  category: $json.category,\n  title: $json.title,\n  url: $json.source_url,\n  description: $json.final_description_he,\n  source_type: $json.source_type,\n  content_type: 'featured_link',\n} }];"
+      }
+    },
+    {
+      "id": "gsheet-sync-featured-1",
+      "name": "Sync To Google Sheet (Featured)",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 3,
+      "position": [
+        2540,
+        -240
+      ],
+      "parameters": {
+        "authentication": "serviceAccount",
+        "resource": "sheet",
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "167Yip35QjI2Zpfwiy4InOLEuly4nUGx4BRTQE8ZShuk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "id",
+          "value": "0"
+        },
+        "dataMode": "autoMapInputData",
+        "options": {}
+      },
+      "credentials": {
+        "googleApi": {
+          "id": "9d2f6c81e4a5b730",
+          "name": "Google Sheets (bit_by_bit)"
         }
       }
     }
@@ -4107,7 +4523,7 @@
         ],
         [
           {
-            "node": "Is Link Submission?",
+            "node": "Is Link Relay?",
             "type": "main",
             "index": 0
           }
@@ -4747,6 +5163,11 @@
             "node": "Send Approval Confirmation",
             "type": "main",
             "index": 0
+          },
+          {
+            "node": "Is Featured Link Approval?",
+            "type": "main",
+            "index": 0
           }
         ]
       ]
@@ -4758,6 +5179,11 @@
             "node": "Send Approval Confirmation",
             "type": "main",
             "index": 0
+          },
+          {
+            "node": "Is Featured Link Approval?",
+            "type": "main",
+            "index": 0
           }
         ]
       ]
@@ -4767,6 +5193,190 @@
         [
           {
             "node": "Respond Draft Approved",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Link Relay?": {
+      "main": [
+        [
+          {
+            "node": "Extract Relay URL",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Is Link Submission?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Relay URL": {
+      "main": [
+        [
+          {
+            "node": "Fetch Relay Link Content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Relay Link Content": {
+      "main": [
+        [
+          {
+            "node": "Extract Relay Title & Description",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Relay Title & Description": {
+      "main": [
+        [
+          {
+            "node": "Draft Relay Hebrew Description",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Draft Relay Hebrew Description": {
+      "main": [
+        [
+          {
+            "node": "Parse Relay Drafted Description",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Relay Drafted Description": {
+      "main": [
+        [
+          {
+            "node": "Classify Source Type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Classify Source Type": {
+      "main": [
+        [
+          {
+            "node": "Insert Community Shared Link Item",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Community Shared Link Item": {
+      "main": [
+        [
+          {
+            "node": "Archive To Knowledge Base (Relay)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Archive To Knowledge Base (Relay)": {
+      "main": [
+        [
+          {
+            "node": "Format Sheet Row (Relay)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Sheet Row (Relay)": {
+      "main": [
+        [
+          {
+            "node": "Sync To Google Sheet (Relay)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sync To Google Sheet (Relay)": {
+      "main": [
+        [
+          {
+            "node": "Send Relay Confirmation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Relay Confirmation": {
+      "main": [
+        [
+          {
+            "node": "Respond Link Relayed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Featured Link Approval?": {
+      "main": [
+        [
+          {
+            "node": "Classify Source Type (Featured)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Classify Source Type (Featured)": {
+      "main": [
+        [
+          {
+            "node": "Archive To Knowledge Base (Featured)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Archive To Knowledge Base (Featured)": {
+      "main": [
+        [
+          {
+            "node": "Format Sheet Row (Featured)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Sheet Row (Featured)": {
+      "main": [
+        [
+          {
+            "node": "Sync To Google Sheet (Featured)",
             "type": "main",
             "index": 0
           }
