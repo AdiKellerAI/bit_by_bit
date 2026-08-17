@@ -7,9 +7,21 @@ truth; this file is a summary/pointer, not a replacement.
 
 ## What this is
 
-A self-improving 1:1 AI assistant (Telegram for the MVP) for an internal AI/dev community,
-plus a separate human-run WhatsApp Community (unrelated infra, not built here). Defense-sector
-context - see PROJECT-SPEC.md §4 for the full security model.
+**Direction changed 2026-08-17 - read this before trusting PROJECT-SPEC.md's framing below.**
+The product is now a **content agent for the community's WhatsApp Community**: it curates and
+drafts weekly shared content (a featured article/podcast/video each Sunday, a summary of
+community-shared links each Thursday), every draft admin-approved via Telegram before Adi
+manually posts it to WhatsApp (the agent cannot post into that group itself - see the sub-phase
+1 notes below for why), learning from Adi's corrections over time via the existing LDD pipeline,
+retargeted. The original 1:1 Telegram Q&A/RAG assistant (everything below "Done" in the phase
+table) is fully built and merged but **currently turned off** - community members are WhatsApp-
+only now, not Telegram at all. **PROJECT-SPEC.md itself has NOT been updated for this pivot yet**
+- it still documents the original 1:1-Q&A-first MVP definition (§17 MVP Validation, Phase 4-6's
+framing, DoD list) as the source of truth. Treat PROJECT-SPEC.md as accurate for the *how* of
+things already built (schema, ADRs, security model) but stale on *what the product's primary
+purpose is* until it's explicitly revised - don't be surprised by the mismatch, and don't treat
+silence in PROJECT-SPEC.md about WhatsApp content curation as this direction being unplanned.
+Defense-sector context - see PROJECT-SPEC.md §4 for the full security model, still accurate.
 
 ## Status
 
@@ -342,6 +354,81 @@ memory for the WhatsApp direction, not yet reflected in PROJECT-SPEC.md/this fil
   via the real webhook since it never delivers). The full positive round-trip for every command
   and edge case was manually verified once, live, this session - that's the source of confidence
   the logic works; the automated suite is the regression guard underneath it, not a replay of it.
+
+## WhatsApp Community Content Agent (new direction, replaces 1:1 Q&A as the primary product)
+
+Decided across an extended conversation with Adi, 2026-08-17. Full sequence, sub-phase 1 done:
+
+1. **Turn off the 1:1 Q&A bot** (done, see notes below)
+2. Thursday link-request -> Sunday featured-post draft/approval loop (not started)
+3. Community link relay -> Thursday summary, `knowledge_base` entries + Google Sheets sync for
+   a public, searchable archive (not started)
+4. LDD retargeted: Adi's corrections to drafts become the learning signal for future drafts,
+   instead of Q&A feedback (not started)
+
+**Why WhatsApp can't be posted into directly, confirmed against Meta's own docs (not assumed):**
+the official WhatsApp Cloud API's Groups API can only create/manage groups the business itself
+creates via the API, capped at 8 participants - it cannot join or post into a pre-existing,
+human-created group (Adi's real community). The only compliant alternative (1:1 template-based
+broadcast to opted-in individual phone numbers) changes the experience from a shared group post
+into individual DMs, which isn't what's wanted here. Unofficial WhatsApp automation (session-
+hijacking libraries etc.) would technically work but violates WhatsApp's Terms of Service and
+risks the number being banned - explicitly ruled out, not a corner to cut under pressure.
+**The resolution**: Adi is both the required approval gate (his own explicit requirement -
+nothing posts without his review) and the only human with real access to the group, so he's also
+the delivery mechanism - the agent drafts, Telegram is the review/approval surface (reusing the
+existing `ADMIN_TELEGRAM_CHAT_ID` control surface), and Adi manually posts the approved content
+into WhatsApp himself. This isn't a workaround, it's the actual architecture now.
+
+**Group-visibility is zero, and that shapes what's buildable.** The agent cannot read anything
+that happens inside the real WhatsApp group (messages, reactions, who joined) since it's not a
+Cloud-API-controlled participant there. This killed two originally-requested features outright:
+automatic new-member welcome messages (no join-event detection possible without ToS-violating
+automation - dropped entirely, not attempted) and automatic survey-response collection (also
+dropped - surveys would need a separate compliant mechanism like a web form, not attempted yet).
+It's why the Thursday "community-shared-links" summary depends on Adi manually relaying links he
+notices in the group via Telegram, by his own explicit choice, over the alternative of an
+automated Google-Form-based collection mechanism that was offered and declined.
+
+### Sub-phase 1 design notes (Turn off the 1:1 Q&A bot)
+
+- **Disabled, not deleted - one connection cut, not a rewrite.** `Sensitive Data Flagged?`'s
+  false branch (in `n8n/workflows/telegram-echo-bot.json`) now points at a 3-node dead-end
+  (`Insert interaction_logs (qa disabled)` -> `Send Q&A Disabled Reply` -> `Respond Q&A
+  Disabled`) instead of `Classification Is PUBLIC?`. Everything from there on - cache, RAG,
+  budget guard, Tier 0/1/2 generation - is untouched in the file, just unreachable. Re-enabling
+  later is one connection change, not a rebuild.
+- **Sensitive-data detection still runs, unconditionally - this was the one thing that could
+  NOT move.** ADR-0003's "distinct, always-on pre-LLM control" applies regardless of whether
+  Q&A itself is enabled. The cut point is deliberately *after* `Detect Language, Classify,
+  Detect Sensitive Data` and `Sensitive Data Flagged?`, not before - a message containing a
+  real secret still gets blocked, redacted, and logged to `sensitive_data_events` exactly as
+  before. Verified live, not assumed.
+- **The nightly evaluator (`nightly-evaluator.json`) needed zero changes to go dormant.** It
+  already only acts on `interaction_logs` rows with `feedback_score = 0 OR needs_review =
+  true`. With Q&A off, no new rows meeting that condition are ever created, so `Any Flagged?`
+  is false every night and it no-ops for free - graceful by construction, not something
+  special-cased for this change. It'll come back to life for real once sub-phase 4 retargets
+  what feeds `prompt_change_proposals`.
+- **The ancestor-safety verification script needed a real fix, not just a rerun.** Orphaning an
+  entire subgraph (26 nodes: cache/RAG/generation) made the existing BFS-based checker fire 26
+  false positives - it correctly found their `$('Node')` references don't resolve via the
+  ancestor graph, but that's expected and harmless for nodes with zero incoming connections
+  that will never execute, not a bug. Fixed by first computing reachability from the workflow's
+  actual trigger nodes (BFS forward from `Webhook`/`scheduleTrigger`/`manualTrigger` node
+  types) and only checking `$('Node')` references inside nodes that are actually reachable.
+  This distinction (reachable-but-wrong-reference vs. unreachable-so-references-don't-matter)
+  is now a permanent part of what this check needs to do, not a one-off fix - any future
+  workflow-graph change that orphans nodes should still show "N unreachable nodes with
+  references, skipped" as expected output, not zero problems by coincidence.
+- **`n8n/tests/run.sh` lost real coverage on purpose, not carelessly.** The RAG-match/no-match,
+  Tier 1/Tier 2 routing, semantic-cache-hit, Security Prompt signal, and base-prompt-selection
+  tests all asserted behavior on a path that's now intentionally unreachable - left in place
+  they'd be permanently red for a reason that isn't a bug. Removed rather than skipped/commented
+  out, with a note in the file that the underlying logic isn't gone, just dormant, and that
+  coverage can be restored from git history if Q&A ever comes back. What's kept and still
+  fully real: secret/webhook validation, idempotency, sensitive-data blocking (still live),
+  rate limiting (runs before the disabled cut, unaffected), and the qa_disabled path itself.
 
 ## How we work (established this session - follow it, don't re-derive it)
 

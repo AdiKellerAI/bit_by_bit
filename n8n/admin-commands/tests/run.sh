@@ -84,7 +84,10 @@ curl -s -o /dev/null -X POST "$URL" \
   -d "{\"update_id\": $NONADMIN_UPDATE_ID, \"message\": {\"message_id\": 1, \"from\": {\"id\": $NONADMIN_ID}, \"chat\": {\"id\": $NONADMIN_ID, \"type\": \"private\"}, \"date\": 1735689600, \"text\": \"/pending\"}}"
 sleep 2
 nonadmin_row=$(psql_exec -tAc "SELECT intent FROM interaction_logs WHERE platform_user_id = '$NONADMIN_ID'" | head -1 | tr -d '[:space:]')
-if [[ "$nonadmin_row" == generated_tier1_* ]] || [[ "$nonadmin_row" == generated_tier2_* ]] || [ "$nonadmin_row" = "rate_limited" ]; then
+# Q&A is disabled (WhatsApp Community Content Agent phase 1) - the ordinary pipeline a non-admin
+# falls through to now ends at qa_disabled instead of a real generation. generated_tier1_*/
+# generated_tier2_* are kept here for when Q&A is ever re-enabled, not dead cruft.
+if [[ "$nonadmin_row" == generated_tier1_* ]] || [[ "$nonadmin_row" == generated_tier2_* ]] || [ "$nonadmin_row" = "rate_limited" ] || [ "$nonadmin_row" = "qa_disabled" ]; then
   echo "[x] a non-admin sending /pending is NOT treated as an admin command (falls through to ordinary pipeline)"
 else
   echo "[ ] a non-admin sending /pending is not treated as an admin command (got intent: $nonadmin_row)"
