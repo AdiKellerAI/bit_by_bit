@@ -34,7 +34,7 @@
       "parameters": {
         "resource": "database",
         "operation": "executeQuery",
-        "query": "SELECT id, user_query, agent_response, intent, retrieved_kb_ids, feedback_score, needs_review\nFROM interaction_logs\nWHERE created_at > now() - interval '24 hours'\n  AND (feedback_score = 0 OR needs_review = true)\nORDER BY created_at\nLIMIT 20;",
+        "query": "SELECT COALESCE(g.flagged, '[]'::json) AS flagged\nFROM (SELECT 1) AS dummy\nLEFT JOIN LATERAL (\n  SELECT json_agg(json_build_object('id', id, 'user_query', user_query, 'agent_response', agent_response, 'intent', intent, 'retrieved_kb_ids', retrieved_kb_ids, 'feedback_score', feedback_score, 'needs_review', needs_review) ORDER BY created_at) AS flagged\n  FROM (\n    SELECT * FROM interaction_logs\n    WHERE created_at > now() - interval '24 hours'\n      AND (feedback_score = 0 OR needs_review = true)\n    ORDER BY created_at\n    LIMIT 20\n  ) recent\n) g ON true\nLIMIT 1;",
         "options": {}
       },
       "credentials": {
@@ -50,7 +50,7 @@
       "parameters": {
         "mode": "runOnceForAllItems",
         "language": "javaScript",
-        "jsCode": "const items = $input.all().map(i => i.json);\nreturn [{ json: { count: items.length, flagged: items } }];\n"
+        "jsCode": "const flagged = $json.flagged || [];\nreturn [{ json: { count: flagged.length, flagged } }];\n"
       }
     },
     {

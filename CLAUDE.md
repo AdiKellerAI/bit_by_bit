@@ -357,17 +357,20 @@ memory for the WhatsApp direction, not yet reflected in PROJECT-SPEC.md/this fil
 
 ## WhatsApp Community Content Agent (new direction, replaces 1:1 Q&A as the primary product)
 
-Decided across an extended conversation with Adi, 2026-08-17. Full sequence, sub-phases 1-3 done:
+Decided across an extended conversation with Adi, 2026-08-17. Full sequence, sub-phases 1-4 done:
 
 1. **Turn off the 1:1 Q&A bot** (done, see notes below)
 2. **Thursday link-request -> Sunday featured-post draft/approval loop** (done, see notes below)
 3. **Community link relay -> Thursday summary, `knowledge_base` entries + Google Sheets sync**
    (done, see notes below) - the public, searchable archive is live:
    `https://docs.google.com/spreadsheets/d/167Yip35QjI2Zpfwiy4InOLEuly4nUGx4BRTQE8ZShuk`
-4. LDD retargeted: Adi's corrections to drafts become the learning signal for future drafts,
+4. **Weekly Survey (native WhatsApp Poll)** (done, see notes below) - added mid-sequence when
+   Adi remembered it was missing; deliberately slotted in before LDD retargeting rather than
+   after, at his explicit choice, since it's part of the same weekly-content surface.
+5. LDD retargeted: Adi's corrections to drafts become the learning signal for future drafts,
    instead of Q&A feedback (not started) - `weekly_content_items` already captures both
    `draft_description_he` and `final_description_he`/`corrected` for exactly this, from
-   sub-phase 2 onward, so there's nothing to backfill once sub-phase 4 starts.
+   sub-phase 2 onward, so there's nothing to backfill once this sub-phase starts.
 
 **Why WhatsApp can't be posted into directly, confirmed against Meta's own docs (not assumed):**
 the official WhatsApp Cloud API's Groups API can only create/manage groups the business itself
@@ -541,6 +544,68 @@ automated Google-Form-based collection mechanism that was offered and declined.
   embeddings now would be a real per-link API cost for zero present benefit. Backfill if/when
   Q&A ever comes back, not before - matches the same "don't build for a hypothetical" judgment
   applied elsewhere this session.
+
+### Sub-phase 4 design notes (Weekly Survey, native WhatsApp Poll)
+
+- **Google Forms was seriously considered and dropped before writing any code.** Adi already
+  set up a service account and a form for this; the plan changed after research surfaced a real
+  risk (service accounts typically have no personal Drive storage quota, and Forms are
+  Drive-backed - creating new forms via the service account could simply fail) and, separately,
+  after Adi pointed out WhatsApp's own native Poll feature is a better fit anyway (one-tap
+  voting in the chat beats clicking out to an external form, and it's what he originally wanted
+  by insisting everything stay "in WhatsApp"). The mechanism this phase actually ships:
+  agent drafts question + options -> Adi approves via Telegram (same loop as everything else) ->
+  Adi manually creates the real Poll in the WhatsApp app -> Adi relays results back via
+  `/results <text>`. Re-confirmed, this time explicitly for 2026, that there is still no
+  official way for a business to read messages from a pre-existing consumer WhatsApp group -
+  even the newest Groups API updates (message-read receipts) remain scoped to groups the
+  business created itself. Unofficial automation would technically work but was ruled out again
+  as a ToS/ban risk, not a corner to cut under pressure.
+- **A real, previously-undetected bug was found via this phase's own testing, then fixed
+  retroactively in already-merged Phase 3 code too.** `Gather Grounding Data` (this phase) was
+  built the same way as Phase 3's `Select Community Shared Links` - a postgres `SELECT` that can
+  return 0 rows, feeding a downstream Code node that aggregates `$input.all()` into one summary
+  item. Live testing (see below) proved that pattern doesn't protect against the zero-rows case
+  at all: **a Code node does not execute when it receives zero input items, regardless of mode**
+  - the aggregation step itself never runs, so nothing downstream does either. For `Gather
+  Grounding Data` this was survivable (the survey would just never get drafted some weeks); for
+  Phase 3's `Select Community Shared Links` it was a real silent failure already live in `main`
+  - on any week with zero relayed links, Adi would get no Thursday summary message at all, not
+  even the intended "no links this week" fallback, since `Any Community Links?` would never even
+  evaluate. Fixed at the SQL layer in all three affected queries (`Gather Grounding Data`,
+  `Select Community Shared Links`, and `nightly-evaluator.json`'s `Select Flagged Interactions`,
+  fixed too for consistency even though it was coincidentally benign there - "do nothing on zero
+  rows" happened to match its intended behavior): `LEFT JOIN LATERAL` + `json_agg` so the query
+  itself always returns exactly one row, with an empty JSON array when nothing matches - the
+  same defensive-row pattern already used throughout this codebase for "found or not" lookups,
+  now recognized as the *only* correct fix for "aggregate N-or-zero rows," not merely one option
+  among several. Downstream Code nodes now read the pre-aggregated array directly instead of
+  calling `$input.all()`.
+- **`n8n execute`'s CLI trigger selection remains unreliable for a workflow with multiple
+  manual triggers, confirmed again from a second angle this phase.** Reordering nodes in the
+  array (tried in sub-phase 3) and converting the other manual triggers to a different node type
+  (tried here) both failed to make the CLI pick the intended one. What reliably works instead:
+  build a small throwaway workflow file containing only the nodes under test plus one manual
+  trigger, import it under its own id, execute, inspect, then delete the throwaway workflow
+  entity directly from `workflow_entity` (no `n8n delete:workflow` CLI command exists in this
+  version). This is how the drafting-chain bug above was actually caught - worth reaching for
+  this technique directly next time a workflow has more than one manual-testable trigger, rather
+  than re-attempting the reordering approaches first.
+- **Survey type rotation is a fixed array, not stored state.** `topic_pick`/`format_preference`
+  appear twice in the six-slot rotation (more actionable, worth asking more often),
+  `content_retro`/`open_interest` once each; `cadence_checkin` is reachable only as a fallback
+  when the last type isn't recognized (defaults to the start of the rotation) rather than a
+  scheduled slot - deliberately rare, meta-level check-ins shouldn't compete with substantive
+  weekly content questions.
+- **Survey approval reuses the exact `/approve`-plus-correction UX as everything else, but is a
+  fully separate table and branch from `weekly_content_items`, checked second.** `Pending Draft
+  Found?`'s false branch now falls through to `Check Pending Survey Draft` before reaching
+  `Check Rate Limit` - a `weekly_content_items` draft always resolves first if both happen to be
+  pending at once, on top of the Tuesday/Thursday/Sunday day-spacing that mostly prevents overlap
+  in practice. Kept as two parallel branches rather than one shared/generic "pending draft"
+  concept spanning both tables, matching the same judgment already applied twice this session
+  (link relay vs. featured link, and now content vs. surveys): differently-shaped data doesn't
+  share nodes well, and duplicating a small branch is cheaper than a fragile generic one.
 
 ## How we work (established this session - follow it, don't re-derive it)
 
