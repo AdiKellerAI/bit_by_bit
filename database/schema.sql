@@ -308,7 +308,7 @@ CREATE TABLE public.weekly_content_items (
     submitted_by text NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     approved_at timestamp with time zone,
-    CONSTRAINT weekly_content_items_content_type_check CHECK ((content_type = ANY (ARRAY['featured_link'::text, 'community_summary'::text]))),
+    CONSTRAINT weekly_content_items_content_type_check CHECK ((content_type = ANY (ARRAY['featured_link'::text, 'community_shared_link'::text, 'community_summary'::text]))),
     CONSTRAINT weekly_content_items_status_check CHECK ((status = ANY (ARRAY['pending_approval'::text, 'approved'::text])))
 );
 
@@ -614,4 +614,5 @@ INSERT INTO public.schema_migrations (version) VALUES
     ('20260815140001'),
     ('20260815160000'),
     ('20260815201924'),
-    ('20260817091401');
+    ('20260817091401'),
+    ('20260817100855');

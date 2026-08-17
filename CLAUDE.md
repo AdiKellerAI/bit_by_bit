@@ -357,12 +357,13 @@ memory for the WhatsApp direction, not yet reflected in PROJECT-SPEC.md/this fil
 
 ## WhatsApp Community Content Agent (new direction, replaces 1:1 Q&A as the primary product)
 
-Decided across an extended conversation with Adi, 2026-08-17. Full sequence, sub-phases 1-2 done:
+Decided across an extended conversation with Adi, 2026-08-17. Full sequence, sub-phases 1-3 done:
 
 1. **Turn off the 1:1 Q&A bot** (done, see notes below)
 2. **Thursday link-request -> Sunday featured-post draft/approval loop** (done, see notes below)
-3. Community link relay -> Thursday summary, `knowledge_base` entries + Google Sheets sync for
-   a public, searchable archive (not started)
+3. **Community link relay -> Thursday summary, `knowledge_base` entries + Google Sheets sync**
+   (done, see notes below) - the public, searchable archive is live:
+   `https://docs.google.com/spreadsheets/d/167Yip35QjI2Zpfwiy4InOLEuly4nUGx4BRTQE8ZShuk`
 4. LDD retargeted: Adi's corrections to drafts become the learning signal for future drafts,
    instead of Q&A feedback (not started) - `weekly_content_items` already captures both
    `draft_description_he` and `final_description_he`/`corrected` for exactly this, from
@@ -478,6 +479,68 @@ automated Google-Form-based collection mechanism that was offered and declined.
   explicit instruction ("I'll just send the fixed phrasing... no back and forward messaging with
   the LLM") - `Mark Approved (corrected)` writes `$('Verify & Normalize').item.json.text`
   directly into `final_description_he`, nothing generated or rephrased.
+
+### Sub-phase 3 design notes (Community relay, Thursday summary, archive + Google Sheets)
+
+- **A real Google Cloud service account key got pasted into chat during this session - handled,
+  but the underlying key should still be rotated.** Adi pasted the full service-account JSON
+  (private key included) directly into the conversation to hand it off. It was written to a
+  0644 temp file (n8n's container user can't read 0600 - the same permission gotcha as the
+  sensitive-data test fixture earlier this session), imported via `n8n import:credentials
+  --projectId=HIEQrXIGRK7NyPNY` (matching every other credential's project), and the temp file
+  deleted from both sides immediately after (confirmed encrypted at rest in
+  `credentials_entity.data` - `Salted__` prefix, not plaintext). The key itself, however, is
+  still "burned" - it lived in chat transcript/terminal scrollback, which isn't a secure secret
+  channel no matter how carefully it's handled afterward. Adi should rotate it in Google Cloud
+  Console (delete this key, generate a new one, re-import) once this phase is confirmed stable -
+  flagged to him twice, worth checking it actually happened before treating this as closed.
+- **Google Sheets node: use `typeVersion: 3` specifically, not the latest.** Confirmed by
+  reading `append.operation.js` in-container: v4+ uses a `resourceMapper` `columns.schema` that
+  has to mirror the sheet's real columns - fragile to hand-author without the visual builder
+  that normally populates it interactively. v3's `dataMode: 'autoMapInputData'` matches by
+  field name instead, and writes the header row itself on the first append if the sheet is
+  empty - no manual sheet setup needed beyond sharing it with the service account email.
+- **A real cross-node reference bug, caught by manual testing, not code review - the second one
+  of this exact shape this session (see Phase 4's "Search Knowledge Base" bug in the earlier
+  notes).** `Is Featured Link Approval?` was originally wired downstream of `Send Approval
+  Confirmation` (a `telegram` node) expecting to read `content_type` from `$json` - but a
+  `telegram` node's output *replaces* `$json` with the Telegram API response, not the
+  `Mark Approved` query's `RETURNING` data. Archival silently never fired (verified live:
+  approving a featured link left `knowledge_base`'s count unchanged). Fixed by wiring both
+  `Mark Approved (as drafted)` and `Mark Approved (corrected)` to feed `Is Featured Link
+  Approval?` *directly and in parallel* with `Send Approval Confirmation`, not through it -
+  `$json` there is then genuinely that query's own `RETURNING` output regardless of which of
+  the two branches ran. Re-verified live after the fix: featured-link approval now archives
+  (`knowledge_base` count 11 -> 12), summary approval still correctly does not (stays 12).
+- **A real FIFO bug found and fixed during planning, before any code was written.** `Check
+  Pending Draft`'s `ORDER BY created_at DESC LIMIT 1` (sub-phase 2) resolves the *newest*
+  pending draft - harmless when only one kind of draft existed, but sub-phase 3 can produce two
+  pending drafts in the same Thursday window (the community summary, then later the featured-
+  link request). A newer draft would silently shadow an older unapproved one - Adi's next
+  `/approve` would resolve to the wrong item without any error. Changed to `ORDER BY created_at
+  ASC` (oldest first) - the one query, nothing else about the approval branch changed.
+- **`n8n execute`'s CLI trigger selection is not simply "first `manualTrigger`-typed node in the
+  JSON array," despite `findCliWorkflowStart`'s source reading that way.** Tried reordering
+  `weekly-content-agent.json`'s two Manual Trigger nodes to test the second one via CLI -
+  confirmed via direct DB inspection that the reorder took effect in storage, but `n8n execute`
+  still ran the first-added trigger's chain regardless. Not fully explained (some other
+  selection mechanism is at play); not worth resolving further since it's a manual-testing
+  limitation only, not a deployed-behavior bug - each Schedule Trigger fires independently on
+  its own cron regardless of node array order or position, confirmed by resolving this phase's
+  actual new logic (summary compilation, the archival-gating fix above) via direct SQL/webhook
+  verification instead. Worth remembering next time a workflow file grows a second manual-
+  testable trigger: don't assume CLI `execute` can target it, verify some other way.
+- **Community-relayed links skip individual approval on purpose - only the compiled Thursday
+  summary goes through the approval loop.** Adi already decided to share a link by relaying it
+  via `/link`; a second approval prompt per link would be redundant with reviewing the week's
+  compiled summary as a whole. Each relay still archives to `knowledge_base`/the Sheet
+  immediately (that decision was already made when he relayed it) - only the *summary message
+  text* needs his review before it's ready to post.
+- **`embedding` is deliberately left NULL on every archived `knowledge_base` row from this
+  phase.** Q&A/RAG is disabled (sub-phase 1) and has no current consumer for it; computing
+  embeddings now would be a real per-link API cost for zero present benefit. Backfill if/when
+  Q&A ever comes back, not before - matches the same "don't build for a hypothetical" judgment
+  applied elsewhere this session.
 
 ## How we work (established this session - follow it, don't re-derive it)
 
