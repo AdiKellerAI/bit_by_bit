@@ -627,7 +627,10 @@
       "name": "Insert interaction_logs (qa disabled)",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [1540, -160],
+      "position": [
+        1540,
+        -160
+      ],
       "parameters": {
         "resource": "database",
         "operation": "executeQuery",
@@ -637,7 +640,10 @@
         }
       },
       "credentials": {
-        "postgres": { "id": "2ceb9b4a66d1d908", "name": "Postgres (bit_by_bit)" }
+        "postgres": {
+          "id": "2ceb9b4a66d1d908",
+          "name": "Postgres (bit_by_bit)"
+        }
       }
     },
     {
@@ -645,7 +651,10 @@
       "name": "Send Q&A Disabled Reply",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
-      "position": [1660, -160],
+      "position": [
+        1660,
+        -160
+      ],
       "parameters": {
         "resource": "message",
         "operation": "sendMessage",
@@ -654,7 +663,10 @@
         "additionalFields": {}
       },
       "credentials": {
-        "telegramApi": { "id": "895b9583b757539f", "name": "Telegram Bot (bit_by_bit)" }
+        "telegramApi": {
+          "id": "895b9583b757539f",
+          "name": "Telegram Bot (bit_by_bit)"
+        }
       }
     },
     {
@@ -662,11 +674,16 @@
       "name": "Respond Q&A Disabled",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.4,
-      "position": [1780, -160],
+      "position": [
+        1780,
+        -160
+      ],
       "parameters": {
         "respondWith": "text",
         "responseBody": "qa_disabled",
-        "options": { "responseCode": 200 }
+        "options": {
+          "responseCode": 200
+        }
       }
     },
     {
@@ -2886,6 +2903,377 @@
           "responseCode": 200
         }
       }
+    },
+    {
+      "id": "if-is-link-submission-1",
+      "name": "Is Link Submission?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1340,
+        -400
+      ],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $('Verify & Normalize').item.json.chat_id }}",
+              "rightValue": "={{ $env.ADMIN_TELEGRAM_CHAT_ID }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "leftValue": "={{ $('Verify & Normalize').item.json.text }}",
+              "rightValue": "/^https?:\\/\\/\\S+$/i",
+              "operator": {
+                "type": "string",
+                "operation": "regex"
+              }
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          }
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "pg-check-pending-draft-1",
+      "name": "Check Pending Draft",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1460,
+        -280
+      ],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "SELECT c.id, c.draft_description_he, c.title, c.source_url\nFROM (SELECT 1) AS dummy\nLEFT JOIN LATERAL (\n  SELECT id, draft_description_he, title, source_url FROM weekly_content_items\n  WHERE status = 'pending_approval' AND submitted_by = $1\n  ORDER BY created_at DESC LIMIT 1\n) c ON true\nLIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $('Verify & Normalize').item.json.platform_user_id ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "2ceb9b4a66d1d908",
+          "name": "Postgres (bit_by_bit)"
+        }
+      }
+    },
+    {
+      "id": "if-pending-draft-found-1",
+      "name": "Pending Draft Found?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1580,
+        -280
+      ],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          }
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "if-is-bare-approve-1",
+      "name": "Is Bare Approve?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1700,
+        -340
+      ],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $('Verify & Normalize').item.json.text.trim().toLowerCase() }}",
+              "rightValue": "/approve",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          }
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "http-fetch-link-content-1",
+      "name": "Fetch Link Content",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1580,
+        -460
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Verify & Normalize').item.json.text }}",
+        "sendHeaders": true,
+        "specifyHeaders": "keypair",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 10000,
+          "response": {
+            "response": {
+              "responseFormat": "text",
+              "outputPropertyName": "data",
+              "neverError": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "code-extract-title-desc-1",
+      "name": "Extract Title & Description",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1700,
+        -460
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const html = $json.data || '';\nfunction extractTag(re) {\n  const m = html.match(re);\n  return m ? m[1].trim() : null;\n}\nconst title = extractTag(/<title[^>]*>([^<]*)<\\/title>/i)\n  || extractTag(/<meta[^>]+property=[\"']og:title[\"'][^>]+content=[\"']([^\"']*)[\"']/i)\n  || extractTag(/<meta[^>]+content=[\"']([^\"']*)[\"'][^>]+property=[\"']og:title[\"']/i);\nconst description = extractTag(/<meta[^>]+property=[\"']og:description[\"'][^>]+content=[\"']([^\"']*)[\"']/i)\n  || extractTag(/<meta[^>]+content=[\"']([^\"']*)[\"'][^>]+property=[\"']og:description[\"']/i)\n  || extractTag(/<meta[^>]+name=[\"']description[\"'][^>]+content=[\"']([^\"']*)[\"']/i)\n  || extractTag(/<meta[^>]+content=[\"']([^\"']*)[\"'][^>]+name=[\"']description[\"']/i);\nconst now = new Date();\nconst daysUntilSunday = (7 - now.getDay()) % 7 || 7;\nconst nextSunday = new Date(now);\nnextSunday.setDate(now.getDate() + daysUntilSunday);\nconst next_sunday = nextSunday.toISOString().slice(0, 10);\nreturn [{ json: { title: title || null, extracted_text: description || null, next_sunday } }];"
+      }
+    },
+    {
+      "id": "openai-draft-hebrew-desc-1",
+      "name": "Draft Hebrew Description",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1820,
+        -460
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'gpt-5.4-nano', max_completion_tokens: 200, messages: [ { role: 'system', content: 'You write one short, honest Hebrew sentence describing a shared link for an AI/dev community. You will be given an extracted page title and description text (may be empty). Base your sentence only on what is given - if both are empty or unhelpful, respond with exactly: \\u05dc\\u05d0 \\u05e0\\u05d9\\u05ea\\u05df \\u05dc\\u05d9\\u05e6\\u05d5\\u05e8 \\u05ea\\u05e7\\u05e6\\u05d9\\u05e8 \\u05d0\\u05d5\\u05d8\\u05d5\\u05de\\u05d8\\u05d9 \\u05dc\\u05e7\\u05d9\\u05e9\\u05d5\\u05e8 \\u05d6\\u05d4. Do not invent details. Output only the sentence, nothing else.' }, { role: 'user', content: 'Title: ' + ($json.title || '(none)') + '\\\\nDescription: ' + ($json.extracted_text || '(none)') } ] }) }}",
+        "options": {}
+      },
+      "credentials": {
+        "openAiApi": {
+          "id": "53f2686ac5199beb",
+          "name": "OpenAI (bit_by_bit)"
+        }
+      }
+    },
+    {
+      "id": "code-parse-drafted-desc-1",
+      "name": "Parse Drafted Description",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1940,
+        -460
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const resp = $json;\nconst text = (resp.choices && resp.choices[0] && resp.choices[0].message && resp.choices[0].message.content) || '';\nreturn [{ json: { draft_description_he: text.trim() } }];"
+      }
+    },
+    {
+      "id": "pg-insert-weekly-content-item-1",
+      "name": "Insert Weekly Content Item",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2060,
+        -460
+      ],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "INSERT INTO weekly_content_items (content_type, source_url, title, draft_description_he, status, target_post_date, submitted_by)\nVALUES ('featured_link', $1, $2, $3, 'pending_approval', $4, $5)\nRETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [ $('Verify & Normalize').item.json.text, $('Extract Title & Description').item.json.title, $('Parse Drafted Description').item.json.draft_description_he, $('Extract Title & Description').item.json.next_sunday, $('Verify & Normalize').item.json.platform_user_id ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "2ceb9b4a66d1d908",
+          "name": "Postgres (bit_by_bit)"
+        }
+      }
+    },
+    {
+      "id": "telegram-send-draft-approval-1",
+      "name": "Send Draft For Approval",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2180,
+        -460
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "={{ $('Verify & Normalize').item.json.chat_id }}",
+        "text": "={{ \"Draft for Sunday \" + $('Extract Title & Description').item.json.next_sunday + \":\\n\\n\" + ($('Extract Title & Description').item.json.title || '(no title found)') + \"\\n\" + $('Verify & Normalize').item.json.text + \"\\n\" + $('Parse Drafted Description').item.json.draft_description_he + \"\\n\\nReply /approve to confirm, or send your own final text to use instead.\" }}",
+        "additionalFields": {}
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "895b9583b757539f",
+          "name": "Telegram Bot (bit_by_bit)"
+        }
+      }
+    },
+    {
+      "id": "respond-link-draft-sent-1",
+      "name": "Respond Link Draft Sent",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        2300,
+        -460
+      ],
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "link_draft_sent",
+        "options": {
+          "responseCode": 200
+        }
+      }
+    },
+    {
+      "id": "pg-mark-approved-as-drafted-1",
+      "name": "Mark Approved (as drafted)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1820,
+        -340
+      ],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "UPDATE weekly_content_items SET status = 'approved', final_description_he = draft_description_he, approved_at = now()\nWHERE id = $1\nRETURNING final_description_he, title, source_url;",
+        "options": {
+          "queryReplacement": "={{ [ $('Check Pending Draft').item.json.id ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "2ceb9b4a66d1d908",
+          "name": "Postgres (bit_by_bit)"
+        }
+      }
+    },
+    {
+      "id": "pg-mark-approved-corrected-1",
+      "name": "Mark Approved (corrected)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1820,
+        -220
+      ],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "UPDATE weekly_content_items SET status = 'approved', final_description_he = $1, corrected = true, approved_at = now()\nWHERE id = $2\nRETURNING final_description_he, title, source_url;",
+        "options": {
+          "queryReplacement": "={{ [ $('Verify & Normalize').item.json.text, $('Check Pending Draft').item.json.id ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "2ceb9b4a66d1d908",
+          "name": "Postgres (bit_by_bit)"
+        }
+      }
+    },
+    {
+      "id": "telegram-send-approval-confirm-1",
+      "name": "Send Approval Confirmation",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1940,
+        -280
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "={{ $('Verify & Normalize').item.json.chat_id }}",
+        "text": "={{ \"Approved:\\n\\n\" + $json.title + \"\\n\" + $json.source_url + \"\\n\" + $json.final_description_he + \"\\n\\nReady to post in the WhatsApp Community.\" }}",
+        "additionalFields": {}
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "895b9583b757539f",
+          "name": "Telegram Bot (bit_by_bit)"
+        }
+      }
+    },
+    {
+      "id": "respond-draft-approved-1",
+      "name": "Respond Draft Approved",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        2060,
+        -280
+      ],
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "weekly_content_approved",
+        "options": {
+          "responseCode": 200
+        }
+      }
     }
   ],
   "connections": {
@@ -3719,7 +4107,7 @@
         ],
         [
           {
-            "node": "Check Rate Limit",
+            "node": "Is Link Submission?",
             "type": "main",
             "index": 0
           }
@@ -4215,6 +4603,170 @@
         [
           {
             "node": "Respond Admin Confirm Rollback Failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Link Submission?": {
+      "main": [
+        [
+          {
+            "node": "Fetch Link Content",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Check Pending Draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Pending Draft": {
+      "main": [
+        [
+          {
+            "node": "Pending Draft Found?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pending Draft Found?": {
+      "main": [
+        [
+          {
+            "node": "Is Bare Approve?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Check Rate Limit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Bare Approve?": {
+      "main": [
+        [
+          {
+            "node": "Mark Approved (as drafted)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark Approved (corrected)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Link Content": {
+      "main": [
+        [
+          {
+            "node": "Extract Title & Description",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Title & Description": {
+      "main": [
+        [
+          {
+            "node": "Draft Hebrew Description",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Draft Hebrew Description": {
+      "main": [
+        [
+          {
+            "node": "Parse Drafted Description",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Drafted Description": {
+      "main": [
+        [
+          {
+            "node": "Insert Weekly Content Item",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Weekly Content Item": {
+      "main": [
+        [
+          {
+            "node": "Send Draft For Approval",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Draft For Approval": {
+      "main": [
+        [
+          {
+            "node": "Respond Link Draft Sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Approved (as drafted)": {
+      "main": [
+        [
+          {
+            "node": "Send Approval Confirmation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Approved (corrected)": {
+      "main": [
+        [
+          {
+            "node": "Send Approval Confirmation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Approval Confirmation": {
+      "main": [
+        [
+          {
+            "node": "Respond Draft Approved",
             "type": "main",
             "index": 0
           }

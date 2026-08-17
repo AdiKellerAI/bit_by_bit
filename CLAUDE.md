@@ -357,14 +357,16 @@ memory for the WhatsApp direction, not yet reflected in PROJECT-SPEC.md/this fil
 
 ## WhatsApp Community Content Agent (new direction, replaces 1:1 Q&A as the primary product)
 
-Decided across an extended conversation with Adi, 2026-08-17. Full sequence, sub-phase 1 done:
+Decided across an extended conversation with Adi, 2026-08-17. Full sequence, sub-phases 1-2 done:
 
 1. **Turn off the 1:1 Q&A bot** (done, see notes below)
-2. Thursday link-request -> Sunday featured-post draft/approval loop (not started)
+2. **Thursday link-request -> Sunday featured-post draft/approval loop** (done, see notes below)
 3. Community link relay -> Thursday summary, `knowledge_base` entries + Google Sheets sync for
    a public, searchable archive (not started)
 4. LDD retargeted: Adi's corrections to drafts become the learning signal for future drafts,
-   instead of Q&A feedback (not started)
+   instead of Q&A feedback (not started) - `weekly_content_items` already captures both
+   `draft_description_he` and `final_description_he`/`corrected` for exactly this, from
+   sub-phase 2 onward, so there's nothing to backfill once sub-phase 4 starts.
 
 **Why WhatsApp can't be posted into directly, confirmed against Meta's own docs (not assumed):**
 the official WhatsApp Cloud API's Groups API can only create/manage groups the business itself
@@ -429,6 +431,53 @@ automated Google-Form-based collection mechanism that was offered and declined.
   coverage can be restored from git history if Q&A ever comes back. What's kept and still
   fully real: secret/webhook validation, idempotency, sensitive-data blocking (still live),
   rate limiting (runs before the disabled cut, unaffected), and the qa_disabled path itself.
+
+### Sub-phase 2 design notes (Thursday link-request -> Sunday post approval)
+
+- **New table, `weekly_content_items`, deliberately shaped for both this phase and phase 3.**
+  `content_type` already distinguishes this phase's `featured_link` from phase 3's planned
+  `community_summary` so the same table serves both without a schema change later - not
+  speculative, since phase 3's shape was already agreed, just not yet built.
+- **The only new workflow file is the Thursday prompt itself - everything else lives in the
+  existing webhook.** `n8n/workflows/weekly-content-agent.json` is just Schedule Trigger (+
+  Manual Trigger, same testability pattern as `nightly-evaluator.json`) -> compute next Sunday's
+  date -> send the prompt. Receiving Adi's reply, fetching the link, drafting, and handling the
+  approval reply all reuse `telegram-echo-bot.json`'s existing webhook and `Verify & Normalize`/
+  `Is Admin Command?` infrastructure rather than standing up a second receiving endpoint.
+- **Both new branches are exempt from the per-user rate limit, inserted right after `Is Admin
+  Command?`'s false branch (before `Check Rate Limit`) - matching the precedent already set for
+  LDD admin commands**, not a fresh decision. `Is Admin Command?`'s false branch now goes to
+  `Is Link Submission?` first, whose own false branch goes to `Check Pending Draft`, whose
+  "nothing pending" branch is what finally reaches `Check Rate Limit` - ordinary users still hit
+  the same rate limit exactly as before, just one hop later in the graph.
+- **The pending-draft lookup's security boundary is the SQL WHERE clause, not a separate
+  identity-gate node - and getting this right mattered.** `Check Pending Draft` filters
+  `submitted_by = $1` where `$1` is the *current sender's own* `platform_user_id`, not the
+  `ADMIN_TELEGRAM_CHAT_ID` env var. An earlier version of this reasoning (caught during planning,
+  before any code was written) would have filtered on the env var instead - which would have let
+  *any* Telegram user "approve" the admin's pending draft by sending `/approve` while one was
+  waiting, since the query wouldn't have checked who was actually asking. Because `submitted_by`
+  can only ever be set to the real admin's id (only reachable via the already-admin-gated link-
+  submission branch), scoping the lookup to "does *this* sender have a pending draft" is both
+  correct and sufficient - verified live with a synthetic non-admin id against a real pending
+  admin draft, confirmed it cannot be hijacked.
+- **Fetching arbitrary URLs needs `responseFormat: 'text'` and a real `User-Agent`, confirmed by
+  reading `HttpRequest/V3/Description.js` in-container** - the default `autodetect` format risks
+  mis-parsing HTML as something else, and many sites reject requests with no browser-like
+  `User-Agent` header. `neverError: true` so a blocked/failed fetch degrades gracefully (title/
+  description come back `null`, the drafting prompt is instructed to say so honestly) rather
+  than crashing the run.
+- **The Hebrew-description LLM call is grounded, not free-form, and explicitly told not to
+  invent content when extraction fails.** Uses `gpt-5.4-nano` (cheap tier - this is admin content
+  drafting, not the "real reasoning" category that earned `claude-sonnet-5` in the nightly
+  evaluator's tiering decision), fed only the extracted `<title>`/`og:title`/`og:description`/
+  meta-description text, with an explicit fallback instruction to say it couldn't produce a
+  preview rather than fabricate one - same no-fabrication discipline as the RAG "don't invent a
+  KB citation" rule and the digest prompt's "don't invent data" rule elsewhere in this project.
+- **The correction path takes Adi's text completely verbatim, no LLM involved.** Matches his own
+  explicit instruction ("I'll just send the fixed phrasing... no back and forward messaging with
+  the LLM") - `Mark Approved (corrected)` writes `$('Verify & Normalize').item.json.text`
+  directly into `final_description_he`, nothing generated or rephrased.
 
 ## How we work (established this session - follow it, don't re-derive it)
 
